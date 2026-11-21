@@ -1,0 +1,166 @@
+# Keeps this fork up to date with the original PreySense and publishes a build.
+#
+# Daily (and on demand / on every push to igpu-only):
+#   1. merge new commits from hammadzaigham/PreySense main into igpu-only
+#   2. build and run PreySense's test suite on Windows
+#   3. publish a Release with PreySense.exe (tag igpu-<version>-<run>)
+# If the merge conflicts or the build/tests fail, nothing is published and an issue is opened.
+#
+# Tags deliberately do not start with "v", so the original project's release.yml (triggered by v* tags)
+# never runs here.
+
+name: Sync upstream and build
+
+on:
+  schedule:
+    - cron: "17 9 * * *"
+  workflow_dispatch:
+  push:
+    branches: [igpu-only]
+    paths-ignore:
+      - "**/*.md"
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: igpu-sync-build
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_URL: https://github.com/hammadzaigham/PreySense.git
+  UPSTREAM_BRANCH: main
+  FORK_BRANCH: igpu-only
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      merged: ${{ steps.merge.outputs.merged }}
+      upstream_sha: ${{ steps.merge.outputs.upstream_sha }}
+    steps:
+      - name: Checkout igpu-only
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.FORK_BRANCH }}
+          fetch-depth: 0
+          # Optional secret SYNC_TOKEN (fine-grained PAT with Contents + Workflows write) is only needed
+          # if the original project changes its own workflow files; the default token can't push those.
+          token: ${{ secrets.SYNC_TOKEN || github.token }}
+
+      - name: Merge upstream
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream "$UPSTREAM_URL"
+          git fetch --no-tags upstream "$UPSTREAM_BRANCH"
+          echo "upstream_sha=$(git rev-parse --short upstream/$UPSTREAM_BRANCH)" >> "$GITHUB_OUTPUT"
+          if git merge-base --is-ancestor "upstream/$UPSTREAM_BRANCH" HEAD; then
+            echo "Already up to date with upstream."
+            echo "merged=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! git merge --no-edit "upstream/$UPSTREAM_BRANCH"; then
+            echo "::error::Upstream changes conflict with the iGPU Only changes:"
+            git diff --name-only --diff-filter=U
+            git merge --abort
+            exit 1
+          fi
+          git push origin "HEAD:$FORK_BRANCH"
+          echo "merged=true" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: sync
+    # Build after a merge, on manual runs and on pushes; a scheduled run with nothing new does nothing.
+    if: needs.sync.outputs.merged == 'true' || github.event_name != 'schedule'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout igpu-only
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.FORK_BRANCH }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Skip if this commit was already released
+        id: check
+        shell: pwsh
+        run: |
+          $existing = git tag --points-at HEAD --list "igpu-*"
+          if ($existing) { "Already released as $existing"; "skip=true" >> $env:GITHUB_OUTPUT }
+          else { "skip=false" >> $env:GITHUB_OUTPUT }
+
+      - name: Setup .NET
+        if: steps.check.outputs.skip != 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Run tests
+        if: steps.check.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          dotnet test PreySense.slnx -c Release --nologo
+          if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
+
+      - name: Publish
+        if: steps.check.outputs.skip != 'true'
+        shell: pwsh
+        run: ./.github/publish.ps1
+
+      - name: Release details
+        if: steps.check.outputs.skip != 'true'
+        id: meta
+        shell: pwsh
+        run: |
+          [xml]$props = Get-Content Directory.Build.props
+          $version = $props.Project.PropertyGroup.Version
+          "tag=igpu-$version-$env:GITHUB_RUN_NUMBER" >> $env:GITHUB_OUTPUT
+          "name=PreySense $version + iGPU Only (build $env:GITHUB_RUN_NUMBER)" >> $env:GITHUB_OUTPUT
+          "sha=$(git rev-parse HEAD)" >> $env:GITHUB_OUTPUT
+          @"
+          PreySense $version from [hammadzaigham/PreySense](https://github.com/hammadzaigham/PreySense) (upstream ``${{ needs.sync.outputs.upstream_sha }}``) with the **iGPU Only** GPU mode added.
+
+          See [IGPU_ONLY.md](https://github.com/${{ github.repository }}/blob/igpu-only/IGPU_ONLY.md) for what it does.
+          Built and tested automatically by GitHub Actions. Not code-signed: Windows SmartScreen may warn on first run.
+
+          To update: quit PreySense from the tray, replace PreySense.exe with this one, start it again as administrator.
+          "@ | Set-Content release_notes.md
+
+      - name: Create release
+        if: steps.check.outputs.skip != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          target_commitish: ${{ steps.meta.outputs.sha }}
+          name: ${{ steps.meta.outputs.name }}
+          body_path: release_notes.md
+          files: dist/PreySense.exe
+          make_latest: true
+
+  report-failure:
+    needs: [sync, build]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open an issue (once)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Automatic upstream update failed"
+          existing=$(gh issue list -R "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq '.[0].number' 2>/dev/null || true)
+          body="The daily update could not be merged, built or tested, so no release was published. The last good release still works.
+
+          Details: $RUN_URL
+
+          A merge conflict means the original PreySense changed code that iGPU Only also changes; it needs a manual fix."
+          # Issues are off by default on forks: then GitHub's failed-workflow email is the notification.
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" -R "$GITHUB_REPOSITORY" --body "Failed again: $RUN_URL" || true
+          else
+            gh issue create -R "$GITHUB_REPOSITORY" --title "$title" --body "$body" \
+              || echo "::warning::Could not open an issue (Issues may be disabled on this fork)."
+          fi

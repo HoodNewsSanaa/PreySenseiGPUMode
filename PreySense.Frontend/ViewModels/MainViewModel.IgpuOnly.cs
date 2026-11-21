@@ -113,6 +113,7 @@ namespace PreySense.Frontend.ViewModels
         /// </summary>
         internal async Task EnforceIgpuOnlyAsync(string reason)
         {
+            if (_hw is null || _hw is MockHardwareService) return;
             // Run on the UI thread, like a button click, whatever thread the trigger came from.
             if (_dispatcher != null && !_dispatcher.CheckAccess())
             {
