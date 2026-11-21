@@ -139,6 +139,13 @@ namespace PreySense.Core.Configuration
         /// <summary>Preferred GPU mode index: 0 = Integrated, 1 = Dynamic/Optimus, 2 = Discrete.</summary>
         public int GpuModePreference { get; set; } = 1;
 
+        /// <summary>iGPU Only: the screen runs on the integrated GPU and the NVIDIA GPU is switched off
+        /// (disabled in Windows) so no app can use it. Other GPU modes switch it back on first.</summary>
+        public bool IgpuOnly { get; set; } = false;
+
+        /// <summary>Use iGPU Only automatically on battery, whatever mode is selected for AC.</summary>
+        public bool IgpuOnlyOnBattery { get; set; } = true;
+
         public SessionConfig Clone() => (SessionConfig)MemberwiseClone();
     }
 

@@ -199,6 +199,45 @@ namespace PreySense.Frontend.Services
         public bool HasDdsBlockers() => NvidiaDdsService.Instance.HasBlockingApps();
         public (bool Success, string Message) SetDdsMode(DdsDisplayMode mode) => NvidiaDdsService.Instance.SetMode(mode);
 
+        public bool? IsDiscreteGpuDisabled() => DeviceHelper.IsDisplayDeviceDisabled("VEN_10DE");
+
+        public bool SetDiscreteGpuEnabled(bool enabled)
+        {
+            if (!enabled)
+            {
+                // Release our own NVIDIA handles first so nothing in PreySense holds the adapter.
+                try { NvmlHelper.Shutdown(); } catch { }
+                try { NvidiaDdsService.Instance.Dispose(); } catch { }
+                bool off = DeviceHelper.SetDisplayDeviceEnabled("VEN_10DE", false);
+                try { NvidiaGpuControl.Shared.RefreshDevice(); } catch { }
+                return off && DeviceHelper.IsDisplayDeviceDisabled("VEN_10DE") == true;
+            }
+
+            if (!DeviceHelper.SetDisplayDeviceEnabled("VEN_10DE", true))
+                return false;
+            for (int i = 0; i < 40 && DeviceHelper.IsDisplayDeviceDisabled("VEN_10DE") != false; i++)
+                System.Threading.Thread.Sleep(250);
+            // Give the NVIDIA driver time to start before its APIs are used again.
+            System.Threading.Thread.Sleep(1500);
+            try { NvidiaDdsService.Instance.Dispose(); } catch { }
+            try { NvmlHelper.Shutdown(); } catch { } // clears NVML's retry back-off
+            try { NvidiaGpuControl.Shared.RefreshDevice(); } catch { }
+            return DeviceHelper.IsDisplayDeviceDisabled("VEN_10DE") == false;
+        }
+
+        public System.Collections.Generic.IReadOnlyList<string>? GetDiscreteGpuAppNames()
+        {
+            try
+            {
+                var control = NvidiaGpuControl.Shared;
+                if (!control.IsValid) control.RefreshDevice();
+                return control.IsValid ? control.GetActiveUserAppNames() : null;
+            }
+            catch { return null; }
+        }
+
+        public bool? IsScreenOnDiscreteGpu() => DeviceHelper.IsDesktopScreenOnAdapter("NVIDIA");
+
         public (bool Success, string Message) RestartDiscreteGpu()
         {
             try

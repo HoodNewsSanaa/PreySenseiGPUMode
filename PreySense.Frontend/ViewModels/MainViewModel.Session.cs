@@ -26,6 +26,7 @@ namespace PreySense.Frontend.ViewModels
 
             SystemEvents.PowerModeChanged += OnSystemPowerModeChanged;
             SystemEvents.SessionEnding += OnSessionEnding;
+            SystemEvents.SessionEnded += OnSessionEnded;
             _sessionHooksAttached = true;
         }
 
@@ -36,6 +37,7 @@ namespace PreySense.Frontend.ViewModels
 
             SystemEvents.PowerModeChanged -= OnSystemPowerModeChanged;
             SystemEvents.SessionEnding -= OnSessionEnding;
+            SystemEvents.SessionEnded -= OnSessionEnded;
             _sessionHooksAttached = false;
         }
 
@@ -115,6 +117,8 @@ namespace PreySense.Frontend.ViewModels
             _ = ApplyStartupLightingAsync();
             if (_disposed) return;
             await RestoreSessionSettingsAsync("startup");
+            if (!_disposed)
+                _ = EnforceIgpuOnlyAsync("startup");
             await _dispatcher.InvokeAsync(InitializeGameMode);
             if (_disposed)
                 return;
@@ -222,6 +226,8 @@ namespace PreySense.Frontend.ViewModels
             }
             if (!_disposed && string.Equals(reason, "resume", StringComparison.OrdinalIgnoreCase) && _gameLaunchWatcher != null)
                 await _gameLaunchWatcher.RecheckForegroundAfterResumeAsync();
+            if (!_disposed && string.Equals(reason, "resume", StringComparison.OrdinalIgnoreCase))
+                _ = EnforceIgpuOnlyAsync("resume");
         }
 
         private string ApplyPersistedHardwareSettings(byte? modeOverride = null)
@@ -287,6 +293,12 @@ namespace PreySense.Frontend.ViewModels
         private void OnSessionEnding(object sender, SessionEndingEventArgs e)
         {
             PersistSessionSettings();
+        }
+
+        // Fires only when sign-out/shutdown really happens (SessionEnding can still be cancelled).
+        private void OnSessionEnded(object sender, SessionEndedEventArgs e)
+        {
+            RestoreDiscreteGpuForExit("shutdown");
         }
     }
 }

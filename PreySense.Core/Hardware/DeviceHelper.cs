@@ -19,6 +19,12 @@ namespace PreySense.Helpers
         private const uint DICS_PROPCHANGE = 0x00000003;
         private const uint DICS_FLAG_GLOBAL = 0x00000001;
         private const uint DIGCF_PRESENT = 0x00000002;
+        private const uint DICS_ENABLE = 0x00000001;
+        private const uint DICS_DISABLE = 0x00000002;
+        private const uint DN_HAS_PROBLEM = 0x00000400;
+        private const uint CM_PROB_DISABLED = 0x00000016;
+        private const int CR_SUCCESS = 0;
+        private const int DISPLAY_DEVICE_ATTACHED_TO_DESKTOP = 0x00000001;
 
         private static readonly Guid DisplayClassGuid = new Guid("4d36e968-e325-11ce-bfc1-08002be10318");
 
@@ -46,6 +52,23 @@ namespace PreySense.Helpers
             public int scope;
             public int hwProfile;
         }
+
+        [DllImport("cfgmgr32.dll")]
+        private static extern int CM_Get_DevNode_Status(out uint status, out uint problemNumber, int devInst, uint flags);
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct DISPLAY_DEVICE
+        {
+            public int cb;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string DeviceName;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceString;
+            public int StateFlags;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceID;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceKey;
+        }
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern bool EnumDisplayDevices(string? lpDevice, uint iDevNum, ref DISPLAY_DEVICE lpDisplayDevice, uint dwFlags);
 
         [DllImport("setupapi.dll", SetLastError = true)]
         private static extern IntPtr SetupDiGetClassDevs(ref Guid classGuid, string? enumerator, IntPtr hwndParent, uint flags);
@@ -196,6 +219,123 @@ namespace PreySense.Helpers
             if (success)
                 InvalidateDisplayDevicePowerStateCache();
             return success;
+        }
+
+        private static bool TryFindDisplayDevice(string hardwareIdSubstring, out IntPtr devInfoSet, out SP_DEVINFO_DATA devInfoData)
+        {
+            devInfoData = new SP_DEVINFO_DATA();
+            devInfoData.cbSize = Marshal.SizeOf(devInfoData);
+            Guid displayGuid = DisplayClassGuid;
+            // No DIGCF_PRESENT: a disabled adapter must be found too. Stale (non-present) entries are skipped
+            // below because CM_Get_DevNode_Status fails for them.
+            devInfoSet = SetupDiGetClassDevs(ref displayGuid, null, IntPtr.Zero, 0);
+            if (devInfoSet == IntPtr.Zero || devInfoSet.ToInt64() == -1)
+            {
+                devInfoSet = IntPtr.Zero;
+                return false;
+            }
+
+            string wanted = hardwareIdSubstring.ToUpperInvariant();
+            int memberIndex = 0;
+            while (SetupDiEnumDeviceInfo(devInfoSet, memberIndex, ref devInfoData))
+            {
+                memberIndex++;
+                StringBuilder buffer = new StringBuilder(1000);
+                if (SetupDiGetDeviceRegistryProperty(devInfoSet, ref devInfoData, 1, out _, buffer, buffer.Capacity, out _)
+                    && buffer.ToString().ToUpperInvariant().Contains(wanted)
+                    && CM_Get_DevNode_Status(out _, out _, devInfoData.devInst, 0) == CR_SUCCESS)
+                    return true;
+            }
+            SetupDiDestroyDeviceInfoList(devInfoSet);
+            devInfoSet = IntPtr.Zero;
+            return false;
+        }
+
+        /// <summary>True when the matching display adapter is disabled in Windows, false when enabled,
+        /// null when no such adapter exists or its state cannot be read.</summary>
+        public static bool? IsDisplayDeviceDisabled(string hardwareIdSubstring)
+        {
+            try
+            {
+                if (!TryFindDisplayDevice(hardwareIdSubstring, out IntPtr set, out SP_DEVINFO_DATA data))
+                    return null;
+                try
+                {
+                    if (CM_Get_DevNode_Status(out uint status, out uint problem, data.devInst, 0) != CR_SUCCESS)
+                        return null;
+                    return (status & DN_HAS_PROBLEM) != 0 && problem == CM_PROB_DISABLED;
+                }
+                finally { SetupDiDestroyDeviceInfoList(set); }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Log($"IsDisplayDeviceDisabled failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>Enables or disables the matching display adapter (same as Device Manager).</summary>
+        public static bool SetDisplayDeviceEnabled(string hardwareIdSubstring, bool enable)
+        {
+            IntPtr set = IntPtr.Zero;
+            try
+            {
+                if (!TryFindDisplayDevice(hardwareIdSubstring, out set, out SP_DEVINFO_DATA data))
+                {
+                    AppLogger.Log($"SetDisplayDeviceEnabled: no display device matching {hardwareIdSubstring}");
+                    return false;
+                }
+                SP_PROPCHANGE_PARAMS pcp = new SP_PROPCHANGE_PARAMS();
+                pcp.classInstallHeader.cbSize = Marshal.SizeOf(typeof(SP_CLASSINSTALL_HEADER));
+                pcp.classInstallHeader.installFunction = (int)DIF_PROPERTYCHANGE;
+                pcp.stateChange = (int)(enable ? DICS_ENABLE : DICS_DISABLE);
+                pcp.scope = (int)DICS_FLAG_GLOBAL;
+                pcp.hwProfile = 0;
+                if (!SetupDiSetClassInstallParams(set, ref data, ref pcp, Marshal.SizeOf(pcp))
+                    || !SetupDiCallClassInstaller(DIF_PROPERTYCHANGE, set, ref data))
+                {
+                    AppLogger.Log($"SetDisplayDeviceEnabled({enable}) failed: Win32 error {Marshal.GetLastWin32Error()}");
+                    return false;
+                }
+                AppLogger.Log($"Display device {hardwareIdSubstring} {(enable ? "enabled" : "disabled")}.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Log($"SetDisplayDeviceEnabled failed: {ex.Message}");
+                return false;
+            }
+            finally
+            {
+                if (set != IntPtr.Zero && set.ToInt64() != -1) SetupDiDestroyDeviceInfoList(set);
+                InvalidateDisplayDevicePowerStateCache();
+            }
+        }
+
+        /// <summary>True when any screen on the desktop is attached to an adapter whose name contains the text
+        /// (e.g. an external monitor wired to the NVIDIA GPU). Null when the outputs cannot be listed.</summary>
+        public static bool? IsDesktopScreenOnAdapter(string adapterNameSubstring)
+        {
+            try
+            {
+                bool any = false, found = false;
+                for (uint i = 0; ; i++)
+                {
+                    var dd = new DISPLAY_DEVICE();
+                    dd.cb = Marshal.SizeOf(dd);
+                    if (!EnumDisplayDevices(null, i, ref dd, 0)) break;
+                    if ((dd.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP) == 0) continue;
+                    any = true;
+                    if ((dd.DeviceString ?? "").IndexOf(adapterNameSubstring, StringComparison.OrdinalIgnoreCase) >= 0)
+                        found = true;
+                }
+                return any ? found : null;
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Log($"IsDesktopScreenOnAdapter failed: {ex.Message}");
+                return null;
+            }
         }
 
         /// <summary>

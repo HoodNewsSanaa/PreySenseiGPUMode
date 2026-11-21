@@ -25,12 +25,15 @@ namespace PreySense.Gpu
 
         private static readonly object _lock = new();
         private static bool _init = false;
+        // While the NVIDIA GPU is switched off (iGPU Only), don't retry NVML every telemetry tick.
+        private static long _nextInitAttemptTicks;
         private static IntPtr _cachedDevice = IntPtr.Zero;
         private static uint _cachedGpuIndex = uint.MaxValue;
 
         private static void EnsureInitializedLocked()
         {
             if (_init) return;
+            if (Environment.TickCount64 < _nextInitAttemptTicks) return;
             try
             {
                 int rc = nvmlInit_v2();
@@ -41,6 +44,7 @@ namespace PreySense.Gpu
             {
                 AppLogger.Log($"NVML Init exception: {e.Message}");
             }
+            if (!_init) _nextInitAttemptTicks = Environment.TickCount64 + 30_000;
         }
 
         private static bool TryGetDeviceLocked(uint gpuIndex, out IntPtr device)
@@ -162,6 +166,7 @@ namespace PreySense.Gpu
             {
                 _cachedDevice = IntPtr.Zero;
                 _cachedGpuIndex = uint.MaxValue;
+                _nextInitAttemptTicks = 0;
                 if (!_init) return;
                 try
                 {

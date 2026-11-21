@@ -157,6 +157,51 @@ namespace PreySense.Gpu
             "audiodg", "ctfloader", "spoolsv", "wlanext", "msdtc",
         };
 
+        /// <summary>
+        /// Names of apps currently running on the NVIDIA GPU that could be a game or other real GPU work.
+        /// Excluded: system processes, anything under the Windows folder, Store apps (except Xbox/Games
+        /// installs) and NVIDIA's own helpers. An app whose path can't be read is kept (treated as real work).
+        /// </summary>
+        public IReadOnlyList<string>? GetActiveUserAppNames()
+        {
+            var names = new List<string>();
+            var internalGpu = Volatile.Read(ref _internalGpu);
+            if (internalGpu is null) return null;
+            int currentPid = Environment.ProcessId;
+            try
+            {
+                foreach (Process process in internalGpu.GetActiveApplications())
+                {
+                    try
+                    {
+                        if (process.Id == currentPid || process.SessionId == 0) continue;
+                        if (_systemProcessNames.Contains(process.ProcessName)) continue;
+                        string? path = null;
+                        try { path = process.MainModule?.FileName; } catch { }
+                        if (!string.IsNullOrEmpty(path))
+                        {
+                            string windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+                            if (!string.IsNullOrEmpty(windowsDir)
+                                && path.StartsWith(windowsDir.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase)) continue;
+                            if (path.Contains("\\WindowsApps\\", StringComparison.OrdinalIgnoreCase)
+                                && !path.Contains("XboxGames", StringComparison.OrdinalIgnoreCase)
+                                && !path.Contains("\\Games\\", StringComparison.OrdinalIgnoreCase)) continue;
+                            if (path.Contains("\\NVIDIA Corporation\\", StringComparison.OrdinalIgnoreCase)) continue;
+                        }
+                        names.Add(process.ProcessName);
+                    }
+                    catch { }
+                    finally { process.Dispose(); }
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Log("GetActiveUserAppNames: " + ex.Message);
+                return null; // unknown: callers must not assume the GPU is idle
+            }
+            return names;
+        }
+
         public void KillGPUApps()
         {
             var internalGpu = Volatile.Read(ref _internalGpu);

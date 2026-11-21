@@ -65,6 +65,13 @@ namespace PreySense.Core.Services
         // Discrete GPU Power Cycle & Restart (Reboot-Free via Acer Service & PnP)
         (bool Success, string Message) RestartDiscreteGpu();
 
+        // iGPU Only: switch the NVIDIA adapter off/on in Windows (Device Manager disable/enable)
+        bool? IsDiscreteGpuDisabled() => null;
+        bool SetDiscreteGpuEnabled(bool enabled) => false;
+        /// <summary>Apps that may be games or other real work on the NVIDIA GPU; null when it can't be determined.</summary>
+        System.Collections.Generic.IReadOnlyList<string>? GetDiscreteGpuAppNames() => null;
+        bool? IsScreenOnDiscreteGpu() => null;
+
         // RGB Keyboard Lighting
         bool IsRgbAvailable => true;
         void SetRgbStatic(byte zone, Color color);

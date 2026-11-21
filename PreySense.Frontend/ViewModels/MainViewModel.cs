@@ -123,6 +123,7 @@ namespace PreySense.Frontend.ViewModels
             _lastAcState = onAc;
             AppLogger.Log($"Power source transition: {source}; applying {(onAc ? "AC" : "battery")} profile.");
             ApplyPowerProfileForSource(source);
+            _ = EnforceIgpuOnlyAsync("power");
         }
 
         public MainViewModel(IHardwareService hw)
@@ -345,6 +346,7 @@ namespace PreySense.Frontend.ViewModels
             // Save before the disposed guard suppresses persistence; lighting is drained below.
             StopGameMode();
             PersistSessionSettings(includeLighting: false);
+            RestoreDiscreteGpuForExit("quit");
             SetMainWindowTelemetryVisible(false);
             // Capture the last edit, including a mode still waiting on the trailing apply.
             // Only explicit shutdown waits: the worker never awaits the dispatcher.

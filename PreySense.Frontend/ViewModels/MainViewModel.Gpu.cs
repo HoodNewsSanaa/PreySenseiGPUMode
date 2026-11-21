@@ -80,6 +80,7 @@ namespace PreySense.Frontend.ViewModels
         [NotifyPropertyChangedFor(nameof(IsGpuStandardActive))]
         [NotifyPropertyChangedFor(nameof(IsGpuUltimateActive))]
         [NotifyPropertyChangedFor(nameof(IsGpuAdvancedOptimusActive))]
+        [NotifyPropertyChangedFor(nameof(IsGpuIgpuOnlyActive))]
         private int _activeGpuMuxMode = -1; // 0 = Optimus (iGPU), 1 = Automatic (Auto DDS), 2 = NVIDIA GPU Only (dGPU)
         [ObservableProperty] private string _gpuMuxModeName = "—";
         [ObservableProperty]
@@ -92,10 +93,11 @@ namespace PreySense.Frontend.ViewModels
         [NotifyPropertyChangedFor(nameof(IsGpuNvidiaOnlyActive))]
         [NotifyPropertyChangedFor(nameof(IsGpuAdvancedOptimusActive))]
         [NotifyPropertyChangedFor(nameof(ShowDdsGpuTiles))]
+        [NotifyPropertyChangedFor(nameof(IsGpuIgpuOnlyActive))]
         private bool _isBiosDiscreteGpuActive;
 
         public bool ShowDdsGpuTiles => !IsBiosDiscreteGpuActive;
-        public int GpuModeTileColumns => IsBiosDiscreteGpuActive ? 2 : 4;
+        public int GpuModeTileColumns => IsBiosDiscreteGpuActive ? 2 : 5;
 
         // GPU selection flags (0=Optimus, 1=Automatic, 2=NVIDIA Only)
         public bool IsGpuEnduranceActive => !IsBiosDiscreteGpuActive && ActiveGpuMuxMode == 0;
@@ -143,11 +145,17 @@ namespace PreySense.Frontend.ViewModels
             OnPropertyChanged(nameof(IsGpuAutoActive));
             OnPropertyChanged(nameof(IsGpuNvidiaOnlyActive));
             OnPropertyChanged(nameof(IsGpuAdvancedOptimusActive));
+            OnPropertyChanged(nameof(IsGpuIgpuOnlyActive));
         }
 
         private void ApplyDdsStatus(DdsStatus? status)
         {
             if (IsBiosDiscreteGpuActive) return;
+            if (_igpuOnlyRtxOff)
+            {
+                ShowIgpuOnlyState();
+                return;
+            }
             ActiveGpuMuxMode = status switch
             {
                 { IsSupported: true, KmdResponse: 0, IsAutomatic: true } => 1,
@@ -161,6 +169,7 @@ namespace PreySense.Frontend.ViewModels
 
         private static string GetGpuModeName(int mode) => mode switch
         {
+            IgpuOnlyMode => "iGPU Only",
             2 => "NVIDIA GPU Only",
             1 => "Automatic",
             0 => "Optimus",
@@ -198,15 +207,24 @@ namespace PreySense.Frontend.ViewModels
                 string s when int.TryParse(s, out int parsed) => parsed,
                 _ => -1
             };
-            if (muxVal < 0 || muxVal > 2) return;
+            if (muxVal < 0 || muxVal > IgpuOnlyMode) return;
 
             if (IsBiosDiscreteGpuActive)
             {
+                if (muxVal == IgpuOnlyMode)
+                {
+                    DiagnosticMessage = "iGPU Only needs the screen on the integrated GPU: switch dGPU Only back to Auto first.";
+                    return;
+                }
                 if (muxVal == 1)
                     await SetBiosGpuModeAsync(PreySense.Helpers.AcerWmi.GpuMux.Automatic, "Would you like to switch to Auto and restart now?", "PreySense • Auto", " • Auto");
                 return;
             }
 
+            // iGPU Only is handled completely by PrepareGpuModeSelectionAsync; for the other modes it switches
+            // the NVIDIA GPU back on first.
+            if (!await PrepareGpuModeSelectionAsync(muxVal))
+                return;
             await ApplyGpuMuxModeCoreAsync(muxVal, persistPreference: true);
         }
 
@@ -359,6 +377,12 @@ namespace PreySense.Frontend.ViewModels
             IsBusy = true;
             try
             {
+                // The panel may be wired to the NVIDIA GPU after the restart: switch it on and keep it on.
+                if (!await PrepareBiosGpuChangeAsync())
+                {
+                    DiagnosticMessage = "Could not switch the RTX back on, so the GPU mode was not changed.";
+                    return;
+                }
                 bool ok = await Task.Run(() => _hw.SetGpuMuxMode(muxMode));
                 if (ok)
                 {
@@ -369,11 +393,13 @@ namespace PreySense.Frontend.ViewModels
                 }
                 else
                 {
+                    _igpuOnlySuspended = false; // no restart coming: iGPU Only may work again
                     DiagnosticMessage = "Could not set the GPU mode.";
                 }
             }
             catch (Exception ex)
             {
+                _igpuOnlySuspended = false;
                 DiagnosticMessage = $"GPU mode error: {ex.Message}";
             }
             finally

@@ -148,6 +148,23 @@
               </StackPanel>
             </Grid>
             <UniformGrid Columns="{Binding GpuModeTileColumns}" Rows="1" Margin="0,2,0,2">
+              <Button Height="62" Margin="3" CommandParameter="3" Command="{Binding SetGpuMuxModeCommand}" Visibility="{Binding ShowDdsGpuTiles, Converter={StaticResource BoolToVis}}"
+                      ToolTip="Screen on the integrated GPU and the RTX switched off, so no app can use it">
+                <FrameworkElement.Style>
+                  <Style BasedOn="{StaticResource OriginalRButtonActionStyle}" TargetType="{x:Type Button}">
+                    <Style.Triggers>
+                      <DataTrigger Value="True" Binding="{Binding IsGpuIgpuOnlyActive}">
+                        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                        <Setter Property="BorderThickness" Value="{DynamicResource SelectedControlBorderThickness}" />
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </FrameworkElement.Style>
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <controls:ThemedIcon Source="pack://application:,,,/Resources/icons8-laptop-32.png" Width="20" Height="20" Margin="0,0,0,2" />
+                  <TextBlock Text="iGPU Only" FontSize="{DynamicResource FontSizeTile}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" />
+                </StackPanel>
+              </Button>
               <Button Height="62" Margin="3" CommandParameter="1" Command="{Binding SetGpuMuxModeCommand}">
                 <FrameworkElement.Style>
                   <Style BasedOn="{StaticResource OriginalRButtonActionStyle}" TargetType="{x:Type Button}">
