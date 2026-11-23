@@ -1,0 +1,83 @@
+<Window Style="{DynamicResource AppWindowRenderingStyle}" x:Class="PreySense.Frontend.Views.PowerDiagnosticsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="clr-namespace:PreySense.Frontend.Controls"
+        mc:Ignorable="d"
+        Title="PreySense &#x2022; Power Diagnostics"
+        Width="420"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Foreground="{DynamicResource TextPrimaryBrush}"
+        FontFamily="{StaticResource AppFontFamily}"
+        ResizeMode="NoResize">
+
+    <!-- iGPU Only fork: live power readings. Sampled once a second, only while this window is open. -->
+    <Border Style="{DynamicResource AppWindowShellStyle}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <controls:WindowTitleBar Grid.Row="0" Title="Power Diagnostics"/>
+
+            <StackPanel Grid.Row="1" Margin="{StaticResource WindowContentMargin}">
+                <Border Style="{StaticResource OriginalSectionPanelStyle}" Margin="0,0,0,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="Power source" Style="{StaticResource SettingLabelStyle}" Margin="0,3"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" x:Name="ValueSource" Text="—" Style="{StaticResource SettingLabelStyle}" Margin="0,3" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Row="1" Text="Battery drain" Style="{StaticResource SettingLabelStyle}" Margin="0,3"/>
+                        <TextBlock Grid.Row="1" Grid.Column="1" x:Name="ValueBattery" Text="—" Style="{StaticResource SettingLabelStyle}" Margin="0,3" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Row="2" Text="CPU package power" Style="{StaticResource SettingLabelStyle}" Margin="0,3"/>
+                        <TextBlock Grid.Row="2" Grid.Column="1" x:Name="ValuePackage" Text="—" Style="{StaticResource SettingLabelStyle}" Margin="0,3" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Row="3" Text="Rest of system" Style="{StaticResource SettingLabelStyle}" Margin="0,3"/>
+                        <TextBlock Grid.Row="3" Grid.Column="1" x:Name="ValueRest" Text="—" Style="{StaticResource SettingLabelStyle}" Margin="0,3" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+                        <TextBlock Grid.Row="4" Text="RTX power state" Style="{StaticResource SettingLabelStyle}" Margin="0,3"/>
+                        <TextBlock Grid.Row="4" Grid.Column="1" x:Name="ValueRtx" Text="—" Style="{StaticResource SettingLabelStyle}" Margin="0,3" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource OriginalSectionPanelStyle}" Margin="0,0,0,8">
+                    <StackPanel>
+                        <TextBlock Text="Package C-state residency" Style="{StaticResource OriginalSectionTitleStyle}" Margin="0,0,0,6"/>
+                        <ItemsControl x:Name="CStateList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="48"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="56"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Name}" Style="{StaticResource SettingLabelStyle}"/>
+                                        <ProgressBar Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding Percent, Mode=OneWay}" Height="6" VerticalAlignment="Center" Margin="4,0"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding Display}" Style="{StaticResource SettingLabelStyle}" HorizontalAlignment="Right"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock x:Name="CStateUnavailable" Visibility="Collapsed" TextWrapping="Wrap" Style="{StaticResource SettingLabelStyle}"
+                            Text="Package C-state counters are not available on this CPU or without the PreySense driver."/>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock TextWrapping="Wrap" Margin="2,0,2,4" FontSize="{DynamicResource FontSizeBody}" Foreground="{DynamicResource TextSecondaryBrush}"
+                    Text="Updates every second while this window is open. C8 and C10 are the deepest idle states: if they stay near zero while idle, something keeps the CPU awake. The RTX state comes from Windows and does not wake the GPU."/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

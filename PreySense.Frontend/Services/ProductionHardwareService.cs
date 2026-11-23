@@ -229,11 +229,23 @@ namespace PreySense.Frontend.Services
         {
             try
             {
+                // Ask Windows first (cached device power data, no driver call). An RTX that is asleep (D3)
+                // or disabled has no apps running on it, and asking NVIDIA's driver would wake it up.
+                DeviceHelper.InvalidateDisplayDevicePowerStateCache();
+                int? state = DeviceHelper.GetDisplayDevicePowerState("VEN_10DE");
+                if (state is >= 2 and <= 4) return System.Array.Empty<string>();
+                if (state is null && DeviceHelper.IsDisplayDeviceDisabled("VEN_10DE") == true) return System.Array.Empty<string>();
                 var control = NvidiaGpuControl.Shared;
                 if (!control.IsValid) control.RefreshDevice();
                 return control.IsValid ? control.GetActiveUserAppNames() : null;
             }
             catch { return null; }
+        }
+
+        public int? GetDiscreteGpuPowerState()
+        {
+            DeviceHelper.InvalidateDisplayDevicePowerStateCache();
+            return DeviceHelper.GetDisplayDevicePowerState("VEN_10DE");
         }
 
         public bool? IsScreenOnDiscreteGpu() => DeviceHelper.IsDesktopScreenOnAdapter("NVIDIA");

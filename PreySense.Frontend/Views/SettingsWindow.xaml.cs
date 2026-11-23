@@ -50,6 +50,19 @@ namespace PreySense.Frontend.Views
             finally { _openingTuningSettings = false; }
         }
 
+        // iGPU Only fork: live power readings (sampled only while the window is open).
+        private void BtnOpenPowerDiagnostics_Click(object sender, RoutedEventArgs e)
+        {
+            bool previousSuppression = App.SuppressAutoHide;
+            App.SuppressAutoHide = true;
+            try
+            {
+                new PowerDiagnosticsWindow { Owner = this }.ShowDialog();
+            }
+            catch (System.Exception ex) { PreySense.AppLogger.Error($"Could not open power diagnostics: {ex}"); }
+            finally { App.SuppressAutoHide = previousSuppression; }
+        }
+
         private void BtnOpenLightingModeSettings_Click(object sender, RoutedEventArgs e)
         {
             if (DataContext is not ViewModels.MainViewModel vm) return;

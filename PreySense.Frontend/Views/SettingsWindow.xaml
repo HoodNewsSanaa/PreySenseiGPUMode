@@ -106,6 +106,8 @@
                                 Click="BtnOpenTuningSettings_Click"/>
                             <controls:SettingActionRow x:Name="RowLightingModeSettings" Title="Lighting Settings" ActionText="Open"
                                 Click="BtnOpenLightingModeSettings_Click"/>
+                            <controls:SettingActionRow x:Name="RowPowerDiagnostics" Title="Power Diagnostics" ActionText="Open"
+                                Click="BtnOpenPowerDiagnostics_Click"/>
                         </StackPanel>
                     </Border>
 

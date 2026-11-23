@@ -37,8 +37,12 @@ namespace PreySense.Frontend.Views
             foreach (string name in MainViewModel.CpuBoostModeNames)
                 DropdownCpuBoost.Items.Add(name);
             DropdownCpuBoost.SelectionChanged += CpuBoostDropdown_Changed;
+            DropdownModeProchot.SelectionChanged += ModeProchotDropdown_Changed;
+            DropdownModeCpuCap.SelectionChanged += ModeCpuCapDropdown_Changed;
             Closed += (_, _) =>
             {
+                DropdownModeProchot.SelectionChanged -= ModeProchotDropdown_Changed;
+                DropdownModeCpuCap.SelectionChanged -= ModeCpuCapDropdown_Changed;
                 _verificationTimer.Stop();
                 if (DataContext is MainViewModel vm)
                     vm.PropertyChanged -= OnTuningVmPropertyChanged;
@@ -181,6 +185,7 @@ namespace PreySense.Frontend.Views
                 SwitchApplyCpuLimits.IsChecked = Draft.ApplyCpuLimits;
 
             LoadGpuClockRows(vm);
+            LoadModeExtras(vm);
             UpdateApplyLimitPanels();
             UpdateActionButtonsEnabled();
             _isUpdatingUi = false;
@@ -613,5 +618,68 @@ namespace PreySense.Frontend.Views
         }
 
         private static byte ModeIndexToByte(int modeIndex) => MainViewModel.ModeIndexToByte(modeIndex);
+
+        // ── iGPU Only fork: per-mode PROCHOT override and CPU frequency cap ──
+
+        /// <summary>Choices for the frequency cap, in MHz; 0 = no cap.</summary>
+        internal static readonly int[] ModeCpuCapChoicesMhz =
+            { 0, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 3000, 3200, 3400, 3600, 3800, 4000, 4200, 4400, 4600, 4800 };
+
+        private void LoadModeExtras(MainViewModel vm)
+        {
+            if (DropdownModeProchot.Items.Count == 0)
+            {
+                int? tjMax = vm.ModeExtrasTjMaxCelsius;
+                DropdownModeProchot.Items.Add(Services.LocalizationService.Translate("Use global setting"));
+                for (int offset = 0; offset <= 63; offset++)
+                    DropdownModeProchot.Items.Add(tjMax is int tj
+                        ? Services.LocalizationService.Format("{0} °C offset (throttles at {1} °C)", offset, tj - offset)
+                        : Services.LocalizationService.Format("{0} °C offset", offset));
+            }
+            _customCapMhz = null;
+            DropdownModeCpuCap.Items.Clear();
+            {
+                foreach (int mhz in ModeCpuCapChoicesMhz)
+                    DropdownModeCpuCap.Items.Add(mhz == 0
+                        ? Services.LocalizationService.Translate("No cap")
+                        : Services.LocalizationService.Format("{0} GHz", (mhz / 1000.0).ToString("0.0", System.Globalization.CultureInfo.CurrentCulture)));
+            }
+
+            int? prochot = vm.ProchotOverrideForModeIndex(_selectedModeIndex);
+            DropdownModeProchot.SelectedIndex = prochot is >= 0 and <= 63 ? prochot.Value + 1 : 0;
+            DropdownModeProchot.IsEnabled = !vm.IsProchotOffsetLocked;
+
+            int? cap = vm.CpuFrequencyCapForModeIndex(_selectedModeIndex);
+            int capIndex = Array.IndexOf(ModeCpuCapChoicesMhz, cap ?? 0);
+            if (capIndex < 0 && cap is int custom)
+            {
+                // A value set by editing the config file: show it as its own entry.
+                DropdownModeCpuCap.Items.Add(Services.LocalizationService.Format("{0} GHz", (custom / 1000.0).ToString("0.0##", System.Globalization.CultureInfo.CurrentCulture)));
+                capIndex = DropdownModeCpuCap.Items.Count - 1;
+                _customCapMhz = custom;
+            }
+            DropdownModeCpuCap.SelectedIndex = Math.Max(0, capIndex);
+        }
+
+        private int? _customCapMhz;
+
+        private async void ModeProchotDropdown_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (_isUpdatingUi || DataContext is not MainViewModel vm || DropdownModeProchot.SelectedIndex < 0) return;
+            int index = DropdownModeProchot.SelectedIndex;
+            int? offset = index == 0 ? null : index - 1;
+            bool ok = await vm.SetProchotOverrideForModeIndexAsync(_selectedModeIndex, offset);
+            if (!ok)
+                SetVerificationText(Services.LocalizationService.Translate("Saved, but the PROCHOT offset could not be applied now."),
+                    TryFindResource("WarningTextBrush") as Brush ?? Brushes.OrangeRed);
+        }
+
+        private async void ModeCpuCapDropdown_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (_isUpdatingUi || DataContext is not MainViewModel vm || DropdownModeCpuCap.SelectedIndex < 0) return;
+            int index = DropdownModeCpuCap.SelectedIndex;
+            int? mhz = index < ModeCpuCapChoicesMhz.Length ? ModeCpuCapChoicesMhz[index] : _customCapMhz;
+            await vm.SetCpuFrequencyCapForModeIndexAsync(_selectedModeIndex, mhz is > 0 ? mhz : null);
+        }
     }
 }

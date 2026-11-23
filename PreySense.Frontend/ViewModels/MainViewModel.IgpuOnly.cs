@@ -211,7 +211,9 @@ namespace PreySense.Frontend.ViewModels
             }
 
             // 2. Screen to the integrated GPU (from Advanced Optimus / Auto).
-            var status = await Task.Run(() => _hw.IsDdsAvailable ? _hw.GetDdsStatus() : null);
+            //    An RTX that is asleep (D3) can't be driving the screen, so NVIDIA's API isn't asked (that would wake it).
+            bool rtxAsleep = await Task.Run(() => _hw.GetDiscreteGpuPowerState()) is >= 2 and <= 4;
+            var status = rtxAsleep ? null : await Task.Run(() => _hw.IsDdsAvailable ? _hw.GetDdsStatus() : null);
             if (status?.IsSupported == true && !IsScreenOnIntel(status))
             {
                 await ApplyGpuMuxModeCoreAsync(0, persistPreference: false);

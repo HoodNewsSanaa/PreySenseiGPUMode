@@ -194,6 +194,13 @@ namespace PreySense.Core.Configuration
         [JsonPropertyOrder(13)]
         public int? FactoryStaticCpuPl2Watts { get; set; }
 
+        /// <summary>
+        /// iGPU Only fork: the CPU frequency cap (MHz) PreySense last wrote to the power plan, so a mode
+        /// without a cap can remove only a cap that PreySense set. Null when PreySense has no cap in place.
+        /// </summary>
+        [JsonPropertyOrder(15)]
+        public int? LastAppliedCpuFrequencyCapMhz { get; set; }
+
         /// <summary>Driver-read factory profiles, saved only after all five modes were captured.</summary>
         [JsonPropertyOrder(14)]
         public Dictionary<string, ModeTuningConfig> FactoryDefaults { get; set; } = new();
@@ -256,6 +263,7 @@ namespace PreySense.Core.Configuration
             GpuBasePowerWatts = GpuBasePowerWatts,
             FactoryStaticCpuPl1Watts = FactoryStaticCpuPl1Watts,
             FactoryStaticCpuPl2Watts = FactoryStaticCpuPl2Watts,
+            LastAppliedCpuFrequencyCapMhz = LastAppliedCpuFrequencyCapMhz,
             FactoryDefaults = FactoryDefaults?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.Clone()!)!,
             Quiet = Quiet?.Clone()!,
             Eco = Eco?.Clone()!,
@@ -363,6 +371,20 @@ namespace PreySense.Core.Configuration
 
         [JsonIgnore]
         public bool HasGpuClockValues => GpuCoreClockOffsetMhz.HasValue && GpuMemoryClockOffsetMhz.HasValue;
+
+        /// <summary>
+        /// iGPU Only fork: PROCHOT offset (0–63 °C below TjMax) used for this mode instead of the global one.
+        /// Null uses the global PROCHOT setting.
+        /// </summary>
+        [JsonPropertyOrder(14)]
+        public int? ProchotOffsetOverrideCelsius { get; set; }
+
+        /// <summary>
+        /// iGPU Only fork (experimental): Windows "maximum processor frequency" for this mode, in MHz,
+        /// written for every core class on the active power plan. Null or 0 means no cap.
+        /// </summary>
+        [JsonPropertyOrder(15)]
+        public int? CpuMaxFrequencyMhz { get; set; }
     }
 
     public sealed class FanConfig

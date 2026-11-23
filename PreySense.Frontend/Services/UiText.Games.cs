@@ -10,6 +10,7 @@ internal static partial class UiText
         French["Game Profiles"] = "Profils de jeu";
         Turkish["Game Profiles"] = "Oyun Profilleri";
         AddLightingDirections();
+        AddForkText();
         AddFanDiagnostics();
         Chinese["LCD Overdrive"] = "LCD 响应加速";
         Hindi["LCD Overdrive"] = "LCD ओवरड्राइव";

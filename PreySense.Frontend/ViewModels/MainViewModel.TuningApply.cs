@@ -181,7 +181,7 @@ public partial class MainViewModel
             5 => tuning.Turbo, 6 => tuning.Eco, _ => throw new ArgumentOutOfRangeException(nameof(mode))
         };
         bool applyCpuLimits = tuning.EnableCpuPowerLimitControl && profile.ApplyCpuLimits;
-        int? prochot = tuning.ApplyProchotOffset && !IsProchotOffsetLocked ? tuning.ProchotOffsetCelsius : null;
+        int? prochot = IsProchotOffsetLocked ? null : ResolveModeProchotOffset(tuning, profile);
         int? gpuRuntime = tuning.EnableGpuPowerLimitControl && !profile.ApplyGpuLimits ? profile.GpuRuntimeLimitWatts : null;
         var gpuOffsets = tuning.EnableGpuPowerLimitControl && profile.ApplyGpuLimits && profile.HasGpuLimitValues
             ? new GpuPowerOffsets(profile.GpuDeltaWatts!.Value, profile.GpuDynamicBoostWatts!.Value, profile.PlatformPowerOffsetWatts!.Value) : null;
@@ -208,6 +208,20 @@ public partial class MainViewModel
         return ApplyProfile(new(mode,
             profile.CpuPl1Watts ?? 0, profile.CpuPl2Watts ?? 0, profile.TauSeconds ?? 0,
             gpuRuntime, prochot, applyCpuLimits));
+    }
+
+    /// <summary>
+    /// iGPU Only fork: the PROCHOT offset a mode switch writes. A mode's own override wins; otherwise the
+    /// global offset when it is switched on. When any mode has an override, the other modes fall back to
+    /// the factory offset so an override does not stay in place after leaving its mode.
+    /// </summary>
+    internal static int? ResolveModeProchotOffset(TuningConfig tuning, ModeTuningConfig profile)
+    {
+        if (profile.ProchotOffsetOverrideCelsius is int own and >= 0 and <= 63) return own;
+        if (tuning.ApplyProchotOffset && tuning.ProchotOffsetCelsius is int global) return global;
+        bool anyOverride = new[] { tuning.Eco, tuning.Quiet, tuning.Balanced, tuning.Performance, tuning.Turbo }
+            .Any(p => p?.ProchotOffsetOverrideCelsius is >= 0 and <= 63);
+        return anyOverride && tuning.FactoryProchotOffsetLocked != true ? tuning.FactoryProchotOffsetCelsius : null;
     }
 
     internal DriverTuningResult RestoreSavedPowerMode(byte mode)
@@ -262,6 +276,8 @@ public partial class MainViewModel
                 profile.ApplyGpuClockOffsets = false;
                 profile.GpuCoreClockOffsetMhz = null;
                 profile.GpuMemoryClockOffsetMhz = null;
+                profile.ProchotOffsetOverrideCelsius = null;
+                profile.CpuMaxFrequencyMhz = null;
             }
             cfg.Tuning.ProchotOffsetCelsius = null;
             cfg.Tuning.ApplyProchotOffset = false;

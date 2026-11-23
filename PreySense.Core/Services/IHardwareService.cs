@@ -70,6 +70,12 @@ namespace PreySense.Core.Services
         bool SetDiscreteGpuEnabled(bool enabled) => false;
         /// <summary>Apps that may be games or other real work on the NVIDIA GPU; null when it can't be determined.</summary>
         System.Collections.Generic.IReadOnlyList<string>? GetDiscreteGpuAppNames() => null;
+
+        /// <summary>
+        /// iGPU Only fork: the RTX's Windows device power state (1 = D0 awake … 4 = D3 asleep) from cached
+        /// device data, without calling the NVIDIA driver. Null when unknown, missing or disabled.
+        /// </summary>
+        int? GetDiscreteGpuPowerState() => null;
         bool? IsScreenOnDiscreteGpu() => null;
 
         // RGB Keyboard Lighting
