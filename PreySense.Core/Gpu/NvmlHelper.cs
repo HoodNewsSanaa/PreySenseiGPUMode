@@ -18,6 +18,14 @@ namespace PreySense.Gpu
         [DllImport(NvmlDll, CallingConvention = CallingConvention.Cdecl)] static extern int nvmlDeviceGetCurrentClocksThrottleReasons(IntPtr device, out ulong clocksThrottleReasons);
         [DllImport(NvmlDll, CallingConvention = CallingConvention.Cdecl)] static extern int nvmlDeviceGetEnforcedPowerLimit(IntPtr device, out uint limitMilliWatts);
 
+        [DllImport(NvmlDll, CallingConvention = CallingConvention.Cdecl)] static extern int nvmlDeviceSetGpuLockedClocks(IntPtr device, uint minGpuClockMHz, uint maxGpuClockMHz);
+        [DllImport(NvmlDll, CallingConvention = CallingConvention.Cdecl)] static extern int nvmlDeviceResetGpuLockedClocks(IntPtr device);
+
+        /// <summary>NVML's "lowest supported clock" value for the minimum of a locked-clock range.</summary>
+        const uint NVML_CLOCK_LIMIT_ID_RANGE_START = 0xffffff00;
+        public const int NVML_ERROR_NOT_SUPPORTED = 3;
+        public const int NVML_ERROR_NO_PERMISSION = 4;
+
         [StructLayout(LayoutKind.Sequential)]
         struct nvmlMemory_t { public ulong total; public ulong free; public ulong used; }
 
@@ -159,6 +167,43 @@ namespace PreySense.Gpu
         }
 
 
+
+        /// <summary>
+        /// iGPU Only fork: caps the GPU core clock at <paramref name="maxMhz"/> (the GPU's lowest clock stays the minimum).
+        /// Returns the NVML status (0 = success, -1 = NVML unavailable). Needs administrator rights.
+        /// </summary>
+        public static int SetGpuLockedClocks(uint maxMhz, uint gpuIndex = 0)
+        {
+            lock (_lock)
+            {
+                try
+                {
+                    if (!TryGetDeviceLocked(gpuIndex, out IntPtr device)) return -1;
+                    int rc = nvmlDeviceSetGpuLockedClocks(device, NVML_CLOCK_LIMIT_ID_RANGE_START, maxMhz);
+                    // Older drivers don't know the "lowest supported" value; 210 MHz is the lowest GeForce clock.
+                    if (rc != NVML_SUCCESS && rc != NVML_ERROR_NO_PERMISSION)
+                        rc = nvmlDeviceSetGpuLockedClocks(device, 210, maxMhz);
+                    return rc;
+                }
+                catch (EntryPointNotFoundException) { return NVML_ERROR_NOT_SUPPORTED; }
+                catch { return -1; }
+            }
+        }
+
+        /// <summary>iGPU Only fork: removes a clock cap set by <see cref="SetGpuLockedClocks"/>.</summary>
+        public static int ResetGpuLockedClocks(uint gpuIndex = 0)
+        {
+            lock (_lock)
+            {
+                try
+                {
+                    if (!TryGetDeviceLocked(gpuIndex, out IntPtr device)) return -1;
+                    return nvmlDeviceResetGpuLockedClocks(device);
+                }
+                catch (EntryPointNotFoundException) { return NVML_ERROR_NOT_SUPPORTED; }
+                catch { return -1; }
+            }
+        }
 
         public static void Shutdown()
         {

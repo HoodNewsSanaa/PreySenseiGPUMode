@@ -201,6 +201,13 @@ namespace PreySense.Core.Configuration
         [JsonPropertyOrder(15)]
         public int? LastAppliedCpuFrequencyCapMhz { get; set; }
 
+        /// <summary>
+        /// iGPU Only fork: the RTX clock limit (MHz) PreySense last asked for, so a mode without a limit
+        /// removes only a limit PreySense set. Null when PreySense has no limit in place.
+        /// </summary>
+        [JsonPropertyOrder(15)]
+        public int? LastAppliedGpuClockLockMhz { get; set; }
+
         /// <summary>Driver-read factory profiles, saved only after all five modes were captured.</summary>
         [JsonPropertyOrder(14)]
         public Dictionary<string, ModeTuningConfig> FactoryDefaults { get; set; } = new();
@@ -264,6 +271,7 @@ namespace PreySense.Core.Configuration
             FactoryStaticCpuPl1Watts = FactoryStaticCpuPl1Watts,
             FactoryStaticCpuPl2Watts = FactoryStaticCpuPl2Watts,
             LastAppliedCpuFrequencyCapMhz = LastAppliedCpuFrequencyCapMhz,
+            LastAppliedGpuClockLockMhz = LastAppliedGpuClockLockMhz,
             FactoryDefaults = FactoryDefaults?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.Clone()!)!,
             Quiet = Quiet?.Clone()!,
             Eco = Eco?.Clone()!,
@@ -385,6 +393,13 @@ namespace PreySense.Core.Configuration
         /// </summary>
         [JsonPropertyOrder(15)]
         public int? CpuMaxFrequencyMhz { get; set; }
+
+        /// <summary>
+        /// iGPU Only fork: maximum RTX core clock for this mode, in MHz (like <c>nvidia-smi -lgc</c>).
+        /// Null means no limit.
+        /// </summary>
+        [JsonPropertyOrder(16)]
+        public int? GpuMaxClockMhz { get; set; }
     }
 
     public sealed class FanConfig

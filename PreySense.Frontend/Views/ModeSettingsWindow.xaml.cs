@@ -39,10 +39,12 @@ namespace PreySense.Frontend.Views
             DropdownCpuBoost.SelectionChanged += CpuBoostDropdown_Changed;
             DropdownModeProchot.SelectionChanged += ModeProchotDropdown_Changed;
             DropdownModeCpuCap.SelectionChanged += ModeCpuCapDropdown_Changed;
+            DropdownModeGpuClock.SelectionChanged += ModeGpuClockDropdown_Changed;
             Closed += (_, _) =>
             {
                 DropdownModeProchot.SelectionChanged -= ModeProchotDropdown_Changed;
                 DropdownModeCpuCap.SelectionChanged -= ModeCpuCapDropdown_Changed;
+                DropdownModeGpuClock.SelectionChanged -= ModeGpuClockDropdown_Changed;
                 _verificationTimer.Stop();
                 if (DataContext is MainViewModel vm)
                     vm.PropertyChanged -= OnTuningVmPropertyChanged;
@@ -659,6 +661,36 @@ namespace PreySense.Frontend.Views
                 _customCapMhz = custom;
             }
             DropdownModeCpuCap.SelectedIndex = Math.Max(0, capIndex);
+
+            DropdownModeGpuClock.Items.Clear();
+            foreach (int mhz in ModeGpuClockChoicesMhz)
+                DropdownModeGpuClock.Items.Add(mhz == 0
+                    ? Services.LocalizationService.Translate("No limit")
+                    : Services.LocalizationService.Format("{0} MHz", mhz));
+            int? gpuLimit = vm.GpuClockLimitForModeIndex(_selectedModeIndex);
+            int gpuIndex = Array.IndexOf(ModeGpuClockChoicesMhz, gpuLimit ?? 0);
+            _customGpuClockMhz = null;
+            if (gpuIndex < 0 && gpuLimit is int customGpu)
+            {
+                DropdownModeGpuClock.Items.Add(Services.LocalizationService.Format("{0} MHz", customGpu));
+                gpuIndex = DropdownModeGpuClock.Items.Count - 1;
+                _customGpuClockMhz = customGpu;
+            }
+            DropdownModeGpuClock.SelectedIndex = Math.Max(0, gpuIndex);
+        }
+
+        /// <summary>Choices for the RTX clock limit, in MHz; 0 = no limit.</summary>
+        internal static readonly int[] ModeGpuClockChoicesMhz =
+            { 0, 1200, 1400, 1600, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 2800 };
+
+        private int? _customGpuClockMhz;
+
+        private async void ModeGpuClockDropdown_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (_isUpdatingUi || DataContext is not MainViewModel vm || DropdownModeGpuClock.SelectedIndex < 0) return;
+            int index = DropdownModeGpuClock.SelectedIndex;
+            int? mhz = index < ModeGpuClockChoicesMhz.Length ? ModeGpuClockChoicesMhz[index] : _customGpuClockMhz;
+            await vm.SetGpuClockLimitForModeIndexAsync(_selectedModeIndex, mhz is > 0 ? mhz : null);
         }
 
         private int? _customCapMhz;

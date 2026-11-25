@@ -40,7 +40,11 @@ disabling it in Device Manager). No app can use it, so it stays fully powered do
   mode is selected, and puts it back if Windows rewrites it (it watches the power plan for changes; nothing polls).
   Intel's own power software can still lower clocks further. PreySense only removes a cap it set itself.
 
-Both save and apply as soon as you pick a value.
+- **Max RTX clock**: caps the RTX's core clock in that mode (the same as `nvidia-smi -lgc`), which also keeps it off
+  the high-voltage end of its curve, so it runs cooler and quieter. It's only sent while the RTX is awake; while it
+  sleeps, PreySense waits for it to wake instead of waking it. It's sent again when iGPU Only switches the RTX back on.
+
+All three save and apply as soon as you pick a value.
 
 **Power Diagnostics** (Settings → Power Diagnostics): battery drain, CPU package power, the rest of the system
 (battery minus CPU), the RTX's power state, and how much of each second the CPU package spends in C2/C3/C6/C8/C10.

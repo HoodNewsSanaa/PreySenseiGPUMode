@@ -145,5 +145,25 @@ internal static partial class UiText
         Turkish["Not found"] = "Bulunamadı";
         Turkish["Could not apply the PROCHOT offset."] = "PROCHOT ofseti uygulanamadı.";
         Turkish["Could not apply the CPU frequency cap."] = "CPU frekans sınırı uygulanamadı.";
+        Chinese["Max RTX clock"] = "RTX 最高频率";
+        Chinese["No limit"] = "不限制";
+        Chinese["{0} MHz"] = "{0} MHz";
+        Chinese["Saved and applied right away. The CPU frequency cap is experimental: Windows or Intel software can still lower clocks further. A sleeping RTX gets its clock limit when it next wakes up."] = "选择后立即保存并应用。CPU 频率上限为实验性功能：Windows 或 Intel 软件仍可能进一步降低频率。处于休眠的 RTX 会在下次唤醒时应用频率限制。";
+        Hindi["Max RTX clock"] = "अधिकतम RTX क्लॉक";
+        Hindi["No limit"] = "कोई सीमा नहीं";
+        Hindi["{0} MHz"] = "{0} MHz";
+        Hindi["Saved and applied right away. The CPU frequency cap is experimental: Windows or Intel software can still lower clocks further. A sleeping RTX gets its clock limit when it next wakes up."] = "तुरंत सहेजा और लागू किया जाता है। CPU आवृत्ति सीमा प्रायोगिक है: Windows या Intel सॉफ़्टवेयर क्लॉक को और कम कर सकते हैं। सोया हुआ RTX अगली बार जागने पर अपनी क्लॉक सीमा पाता है।";
+        Spanish["Max RTX clock"] = "Frecuencia máxima de la RTX";
+        Spanish["No limit"] = "Sin límite";
+        Spanish["{0} MHz"] = "{0} MHz";
+        Spanish["Saved and applied right away. The CPU frequency cap is experimental: Windows or Intel software can still lower clocks further. A sleeping RTX gets its clock limit when it next wakes up."] = "Se guarda y aplica al instante. El límite de frecuencia de la CPU es experimental: Windows o el software de Intel aún pueden bajar más las frecuencias. Una RTX en reposo recibe su límite de frecuencia la próxima vez que despierte.";
+        French["Max RTX clock"] = "Fréquence RTX maximale";
+        French["No limit"] = "Aucune limite";
+        French["{0} MHz"] = "{0} MHz";
+        French["Saved and applied right away. The CPU frequency cap is experimental: Windows or Intel software can still lower clocks further. A sleeping RTX gets its clock limit when it next wakes up."] = "Enregistré et appliqué immédiatement. La limite de fréquence CPU est expérimentale : Windows ou les logiciels Intel peuvent encore baisser les fréquences. Une RTX en veille reçoit sa limite de fréquence à son prochain réveil.";
+        Turkish["Max RTX clock"] = "Maksimum RTX saati";
+        Turkish["No limit"] = "Sınır yok";
+        Turkish["{0} MHz"] = "{0} MHz";
+        Turkish["Saved and applied right away. The CPU frequency cap is experimental: Windows or Intel software can still lower clocks further. A sleeping RTX gets its clock limit when it next wakes up."] = "Hemen kaydedilir ve uygulanır. CPU frekans sınırı deneyseldir: Windows veya Intel yazılımı saat hızlarını yine de daha fazla düşürebilir. Uykudaki RTX, saat sınırını bir sonraki uyanışında alır.";
     }
 }

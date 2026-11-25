@@ -278,6 +278,7 @@ public partial class MainViewModel
                 profile.GpuMemoryClockOffsetMhz = null;
                 profile.ProchotOffsetOverrideCelsius = null;
                 profile.CpuMaxFrequencyMhz = null;
+                profile.GpuMaxClockMhz = null;
             }
             cfg.Tuning.ProchotOffsetCelsius = null;
             cfg.Tuning.ApplyProchotOffset = false;

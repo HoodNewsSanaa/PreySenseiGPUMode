@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using PreySense.Core.Configuration;
 using PreySense.Core.Hardware;
+using PreySense.Gpu;
 using PreySense.Mode;
 
 namespace PreySense.Frontend.ViewModels;
@@ -15,6 +16,9 @@ public partial class MainViewModel
     /// <summary>Test seam for the Windows frequency-cap writer (MHz, 0 = no cap).</summary>
     internal Func<int, bool>? CpuFrequencyCapWriter { get; set; }
 
+    /// <summary>Test seam for the RTX clock limit: (MHz or 0, reset driver) → reached the driver now.</summary>
+    internal Func<int, bool, bool>? GpuClockLockRequester { get; set; }
+
     /// <summary>Test seam for the PROCHOT writer used when the edited mode is already active.</summary>
     internal Func<int, bool>? ProchotOffsetWriter { get; set; }
 
@@ -24,6 +28,52 @@ public partial class MainViewModel
     internal int? ProchotOverrideForModeIndex(int modeIndex) => SavedTuningMode(modeIndex).ProchotOffsetOverrideCelsius;
 
     internal int? CpuFrequencyCapForModeIndex(int modeIndex) => SavedTuningMode(modeIndex).CpuMaxFrequencyMhz;
+
+    internal int? GpuClockLimitForModeIndex(int modeIndex) => SavedTuningMode(modeIndex).GpuMaxClockMhz;
+
+    /// <summary>Saves a mode's RTX clock limit (null = no limit) and applies it if that mode is active.</summary>
+    internal async Task SetGpuClockLimitForModeIndexAsync(int modeIndex, int? maxMhz)
+    {
+        if (!GpuClockLock.IsValid(maxMhz)) maxMhz = null;
+        byte mode = ModeIndexToByte(modeIndex);
+        TuningStore.Update(cfg => ProfileForMode(cfg.Tuning, mode).GpuMaxClockMhz = maxMhz);
+        if (mode == ActivePowerMode)
+            await Task.Run(() => ApplyGpuClockLockForMode(mode));
+    }
+
+    /// <summary>
+    /// Asks for the mode's RTX clock limit, or removes a limit PreySense set earlier when the mode has none.
+    /// While the RTX is asleep the request waits for it to wake up instead of waking it.
+    /// </summary>
+    internal void ApplyGpuClockLockForMode(byte mode)
+    {
+        try
+        {
+            if (!ProfileManager.IsSupportedMode(mode)) return;
+            var tuning = (TuningConfigurationReader?.Invoke() ?? TuningStore.GetCurrent()).Tuning;
+            int? limit = ProfileForMode(tuning, mode).GpuMaxClockMhz;
+            var request = GpuClockLockRequester ?? GpuClockLock.Request;
+            if (GpuClockLock.IsValid(limit))
+            {
+                request(limit!.Value, false);
+                if (tuning.LastAppliedGpuClockLockMhz != limit)
+                    TuningStore.Update(cfg => cfg.Tuning.LastAppliedGpuClockLockMhz = limit);
+            }
+            else if (tuning.LastAppliedGpuClockLockMhz is not null)
+            {
+                request(0, true);
+                TuningStore.Update(cfg => cfg.Tuning.LastAppliedGpuClockLockMhz = null);
+            }
+            else
+            {
+                request(0, false); // nothing of ours in place: just stop any pending request
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("[GPU clock] " + ex.Message);
+        }
+    }
 
     /// <summary>Saves a mode's PROCHOT override (null = use the global setting) and applies it if that mode is active.</summary>
     internal async Task<bool> SetProchotOverrideForModeIndexAsync(int modeIndex, int? offsetCelsius)

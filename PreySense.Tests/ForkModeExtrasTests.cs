@@ -124,4 +124,73 @@ public class ForkModeExtrasTests
         var sampler = new PowerDiagnosticsSampler(null);
         Assert.IsFalse(sampler.PackageCStatesSupported);
     }
+
+    [TestMethod]
+    [DoNotParallelize] // GpuClockLock is process-wide state
+    public void GpuClockLock_WaitsWhileAsleep_AndAppliesOnWake()
+    {
+        var oldState = PreySense.Gpu.GpuClockLock.PowerStateReader;
+        var oldWriter = PreySense.Gpu.GpuClockLock.DriverWriter;
+        var oldDisabled = PreySense.Gpu.GpuClockLock.DeviceDisabledReader;
+        try
+        {
+            int? state = 4;
+            var writes = new List<int>();
+            PreySense.Gpu.GpuClockLock.PowerStateReader = () => state;
+            PreySense.Gpu.GpuClockLock.DeviceDisabledReader = () => false;
+            PreySense.Gpu.GpuClockLock.DriverWriter = mhz => { writes.Add(mhz); return 0; };
+
+            Assert.IsFalse(PreySense.Gpu.GpuClockLock.Request(2000, false)); // asleep: no driver call
+            Assert.AreEqual(0, writes.Count);
+            Assert.IsTrue(PreySense.Gpu.GpuClockLock.IsPending);
+
+            state = 1;
+            Assert.IsTrue(PreySense.Gpu.GpuClockLock.Request(2000, false));
+            CollectionAssert.AreEqual(new[] { 2000 }, writes);
+            Assert.IsFalse(PreySense.Gpu.GpuClockLock.IsPending);
+
+            PreySense.Gpu.GpuClockLock.MarkDriverRestarted(); // driver restarted while awake: sent again
+            CollectionAssert.AreEqual(new[] { 2000, 2000 }, writes);
+
+            Assert.IsTrue(PreySense.Gpu.GpuClockLock.Request(0, true)); // remove
+            CollectionAssert.AreEqual(new[] { 2000, 2000, 0 }, writes);
+            Assert.IsFalse(PreySense.Gpu.GpuClockLock.Request(0, false)); // nothing to do
+            Assert.AreEqual(3, writes.Count);
+        }
+        finally
+        {
+            PreySense.Gpu.GpuClockLock.Stop();
+            PreySense.Gpu.GpuClockLock.PowerStateReader = oldState;
+            PreySense.Gpu.GpuClockLock.DriverWriter = oldWriter;
+            PreySense.Gpu.GpuClockLock.DeviceDisabledReader = oldDisabled;
+        }
+    }
+
+    [TestMethod]
+    public void GpuClockLimit_PerMode_RemovesOnlyItsOwnLimit()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "PreySenseGpuLock-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var store = new ConfigurationService(Path.Combine(folder, "preysense.json"));
+            store.Update(config => config.Tuning.Quiet.GpuMaxClockMhz = 1800);
+            var vm = (MainViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
+            vm.TuningConfigurationStore = store;
+            var requests = new List<(int Mhz, bool Reset)>();
+            vm.GpuClockLockRequester = (mhz, reset) => { requests.Add((mhz, reset)); return true; };
+
+            vm.ApplyGpuClockLockForMode(1); // Balanced, nothing of ours in place
+            Assert.AreEqual((0, false), requests[^1]);
+
+            vm.ApplyGpuClockLockForMode(0); // Quiet: 1800 MHz
+            Assert.AreEqual((1800, false), requests[^1]);
+            Assert.AreEqual(1800, store.GetCurrent().Tuning.LastAppliedGpuClockLockMhz);
+
+            vm.ApplyGpuClockLockForMode(5); // Turbo: remove ours
+            Assert.AreEqual((0, true), requests[^1]);
+            Assert.IsNull(store.GetCurrent().Tuning.LastAppliedGpuClockLockMhz);
+        }
+        finally { Directory.Delete(folder, true); }
+    }
 }

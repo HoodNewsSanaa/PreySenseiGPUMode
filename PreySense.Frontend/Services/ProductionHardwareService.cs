@@ -222,7 +222,10 @@ namespace PreySense.Frontend.Services
             try { NvidiaDdsService.Instance.Dispose(); } catch { }
             try { NvmlHelper.Shutdown(); } catch { } // clears NVML's retry back-off
             try { NvidiaGpuControl.Shared.RefreshDevice(); } catch { }
-            return DeviceHelper.IsDisplayDeviceDisabled("VEN_10DE") == false;
+            bool on = DeviceHelper.IsDisplayDeviceDisabled("VEN_10DE") == false;
+            // The driver restarted, so a per-mode RTX clock limit has to be sent again.
+            if (on) GpuClockLock.MarkDriverRestarted();
+            return on;
         }
 
         public System.Collections.Generic.IReadOnlyList<string>? GetDiscreteGpuAppNames()
