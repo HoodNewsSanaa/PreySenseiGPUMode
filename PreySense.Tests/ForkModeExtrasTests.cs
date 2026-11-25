@@ -141,7 +141,7 @@ public class ForkModeExtrasTests
             PreySense.Gpu.GpuClockLock.DriverWriter = mhz => { writes.Add(mhz); return 0; };
 
             Assert.IsFalse(PreySense.Gpu.GpuClockLock.Request(2000, false)); // asleep: no driver call
-            Assert.AreEqual(0, writes.Count);
+            Assert.IsEmpty(writes);
             Assert.IsTrue(PreySense.Gpu.GpuClockLock.IsPending);
 
             state = 1;
@@ -155,7 +155,7 @@ public class ForkModeExtrasTests
             Assert.IsTrue(PreySense.Gpu.GpuClockLock.Request(0, true)); // remove
             CollectionAssert.AreEqual(new[] { 2000, 2000, 0 }, writes);
             Assert.IsFalse(PreySense.Gpu.GpuClockLock.Request(0, false)); // nothing to do
-            Assert.AreEqual(3, writes.Count);
+            Assert.HasCount(3, writes);
         }
         finally
         {
