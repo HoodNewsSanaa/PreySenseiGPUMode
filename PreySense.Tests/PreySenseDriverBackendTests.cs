@@ -8,6 +8,7 @@ using PreySense.Core.Hardware;
 namespace PreySense.Tests;
 
 [TestClass]
+[DoNotParallelize] // these tests share the extracted driver file under ProgramData
 public class PreySenseDriverBackendTests
 {
     private sealed class MockDriverDeviceOps : IPreySenseDriverDeviceOperations
