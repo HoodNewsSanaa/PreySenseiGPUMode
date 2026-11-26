@@ -34,7 +34,7 @@ public partial class MainViewModel
     internal Func<uint, NvidiaSettingsResult>? PreferredGpuWriter { get; set; }
     internal Func<NvidiaPreferredGpuValues, NvidiaSettingsResult>? PreferredGpuRestorer { get; set; }
 
-    private readonly object _preferredGpuGate = new();
+    private static readonly object PreferredGpuGate = new();
 
     /// <summary>Test seam for the PROCHOT writer used when the edited mode is already active.</summary>
     internal Func<int, bool>? ProchotOffsetWriter { get; set; }
@@ -331,7 +331,7 @@ public partial class MainViewModel
         try
         {
             if (!ProfileManager.IsSupportedMode(mode)) return;
-            lock (_preferredGpuGate)
+            lock (PreferredGpuGate)
             {
                 var tuning = (TuningConfigurationReader?.Invoke() ?? TuningStore.GetCurrent()).Tuning;
                 int? wanted = ProfileForMode(tuning, mode).PreferredGpu;
