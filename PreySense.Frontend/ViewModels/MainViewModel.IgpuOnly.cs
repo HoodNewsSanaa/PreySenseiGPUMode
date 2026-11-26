@@ -44,6 +44,8 @@ namespace PreySense.Frontend.ViewModels
         private volatile bool _igpuOnlyRtxOff;
         // Set before a BIOS GPU change and at exit: from then on the NVIDIA GPU is never switched off again.
         private volatile bool _igpuOnlySuspended;
+        /// <summary>The user picked another GPU mode while on battery: iGPU Only on battery waits until the next plug-in.</summary>
+        private volatile bool _igpuOnlyBatteryOverride;
         private string _igpuOnlyLastNotice = string.Empty;
 
         public bool IsGpuIgpuOnlyActive => !IsBiosDiscreteGpuActive && ActiveGpuMuxMode == IgpuOnlyMode;
@@ -74,7 +76,35 @@ namespace PreySense.Frontend.ViewModels
             if (_igpuOnlySuspended) return false;
             var session = ReadSessionConfig();
             if (session.IgpuOnly) return true;
-            return session.IgpuOnlyOnBattery && _currentPowerSource == PowerSourceKind.Battery;
+            return session.IgpuOnlyOnBattery && !_igpuOnlyBatteryOverride && _currentPowerSource == PowerSourceKind.Battery;
+        }
+
+        public bool IsIgpuOnlyOnBatteryEnabled
+        {
+            get
+            {
+                try { return ReadSessionConfig().IgpuOnlyOnBattery; }
+                catch { return true; }
+            }
+        }
+
+        [CommunityToolkit.Mvvm.Input.RelayCommand]
+        private async Task ToggleIgpuOnlyOnBattery()
+        {
+            bool enabled = !IsIgpuOnlyOnBatteryEnabled;
+            try { ConfigurationService.Instance.Update(cfg => cfg.Session.IgpuOnlyOnBattery = enabled); }
+            catch (Exception ex)
+            {
+                DiagnosticMessage = $"Could not save iGPU Only on battery: {ex.Message}";
+                return;
+            }
+            _igpuOnlyBatteryOverride = false;
+            OnPropertyChanged(nameof(IsIgpuOnlyOnBatteryEnabled));
+            DiagnosticMessage = enabled
+                ? "On battery, PreySense switches to iGPU Only."
+                : "On battery, PreySense keeps the GPU mode you picked.";
+            _igpuOnlyLastNotice = string.Empty;
+            await EnforceIgpuOnlyAsync("user");
         }
 
         private void IgpuOnlyNotice(string message)
@@ -302,6 +332,9 @@ namespace PreySense.Frontend.ViewModels
                 await Task.Delay(250);
             }
             try { await Task.Run(_hw.RefreshGpuAdapter); } catch { }
+            // A preferred GPU chosen while the RTX was off could not reach NVIDIA's settings until now.
+            byte activeMode = ActivePowerMode;
+            _ = Task.Run(() => ApplyPreferredGpuForMode(activeMode));
             _igpuOnlyLastNotice = string.Empty;
             IgpuOnlyNotice(reason == "power" ? "Plugged in: RTX available again." : "RTX switched on.");
             return true;
@@ -326,6 +359,7 @@ namespace PreySense.Frontend.ViewModels
             _igpuOnlyLastNotice = string.Empty;
             if (muxVal == IgpuOnlyMode)
             {
+                _igpuOnlyBatteryOverride = false;
                 SaveIgpuOnlyPreference(true);
                 await EnforceIgpuOnlyAsync("user");
                 return false;
@@ -333,12 +367,8 @@ namespace PreySense.Frontend.ViewModels
 
             // Any other mode: leave iGPU Only, and switch the NVIDIA GPU on before the stock switch.
             SaveIgpuOnlyPreference(false);
-            if (WantsIgpuOnly())
-            {
-                SaveGpuModePreference(muxVal);
-                DiagnosticMessage = $"On battery the RTX stays off. {GetGpuModeName(muxVal)} is used when you plug in.";
-                return false;
-            }
+            // Picking another mode by hand on battery overrides "iGPU Only on battery" until the next plug-in.
+            if (_currentPowerSource == PowerSourceKind.Battery) _igpuOnlyBatteryOverride = true;
             if (!await IgpuOnlyLock.WaitAsync(TimeSpan.FromSeconds(60)))
             {
                 DiagnosticMessage = "The RTX is still being switched. Try again in a moment.";

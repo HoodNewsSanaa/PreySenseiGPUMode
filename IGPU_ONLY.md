@@ -15,7 +15,9 @@ disabling it in Device Manager). No app can use it, so it stays fully powered do
 
 - **Selecting any other mode** (Hybrid, Auto, Advanced Optimus) switches the NVIDIA GPU back on first, then applies that mode.
   Picking Advanced Optimus is how you move the screen and games to the RTX.
-- **On battery** iGPU Only is applied automatically, and your previous mode returns when you plug in.
+- **On battery** iGPU Only is applied automatically, and your previous mode returns when you plug in. Picking
+  another GPU mode by hand on battery keeps that mode until you next plug in, and Settings → "iGPU Only on battery"
+  turns the automatic switch off.
   Turn this off with `"IgpuOnlyOnBattery": false` under `Session` in `preysense.json`.
 
 ## Safety rules
@@ -55,7 +57,20 @@ disabling it in Device Manager). No app can use it, so it stays fully powered do
   Max CPU frequency instead. "Windows default" works the same way as for PCIe power saving: Windows' values are
   saved the first time and written back afterwards.
 
+- **Preferred GPU (NVIDIA)**: NVIDIA Control Panel's global "Preferred graphics processor" for that mode
+  (Integrated graphics, Auto-select or NVIDIA processor). "Integrated graphics" keeps new apps off the RTX so it can
+  sleep in Optimus. Games with their own NVIDIA profile, and apps you set in Windows' graphics settings, keep their
+  own choice. PreySense only talks to NVIDIA's driver when the value changes, and while iGPU Only has the RTX
+  switched off it waits and sends it when the RTX comes back.
+
 All of these save and apply as soon as you pick a value.
+
+**Move apps off the RTX** (Settings): lists the apps using the RTX and, after you confirm, restarts it so they
+move to the integrated GPU (like Legion Toolkit's "deactivate GPU"). Most apps carry on; games and some apps may
+close. Set the mode's preferred GPU to Integrated graphics first, or apps may pick the RTX again. It isn't offered
+while the RTX drives a screen.
+
+**Predator key**: also minimizes PreySense when a settings page or dialog is open (it hides it otherwise).
 
 **Power Diagnostics** (Settings → Power Diagnostics): battery drain, CPU package power, the rest of the system
 (battery minus CPU), the RTX's power state, and how much of each second the CPU package spends in C2/C3/C6/C8/C10.

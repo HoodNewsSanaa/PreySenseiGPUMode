@@ -308,6 +308,47 @@ public class ForkModeExtrasTests
     }
 
     [TestMethod]
+    public void PreferredGpu_WaitsForTheRtxSkipsRepeatsAndRestoresNvidiaValues()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "PreySensePreferredGpu-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var store = new ConfigurationService(Path.Combine(folder, "preysense.json"));
+            store.Update(config =>
+            {
+                config.Tuning.Eco.PreferredGpu = (int)PreySense.Gpu.NvidiaPreferredGpu.Integrated;
+                config.Tuning.Quiet.PreferredGpu = (int)PreySense.Gpu.NvidiaPreferredGpu.Integrated;
+            });
+            var vm = (MainViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
+            vm.TuningConfigurationStore = store;
+            var original = new PreySense.Gpu.NvidiaPreferredGpuValues(null, 0x10); // McCompat at driver default
+            var result = PreySense.Gpu.NvidiaSettingsResult.NoNvidiaGpu;
+            var writes = new List<uint>();
+            var restores = new List<PreySense.Gpu.NvidiaPreferredGpuValues>();
+            vm.PreferredGpuReader = () => (result, original);
+            vm.PreferredGpuWriter = value => { writes.Add(value); return PreySense.Gpu.NvidiaSettingsResult.Ok; };
+            vm.PreferredGpuRestorer = values => { restores.Add(values); return PreySense.Gpu.NvidiaSettingsResult.Ok; };
+
+            vm.ApplyPreferredGpuForMode(6); // Eco while the RTX is off: nothing written, nothing remembered
+            Assert.IsEmpty(writes);
+            Assert.IsNull(store.GetCurrent().Tuning.LastAppliedPreferredGpu);
+
+            result = PreySense.Gpu.NvidiaSettingsResult.Ok; // RTX back on
+            vm.ApplyPreferredGpuForMode(6);
+            vm.ApplyPreferredGpuForMode(0); // Quiet: same choice, no driver call
+            CollectionAssert.AreEqual(new[] { PreySense.Gpu.NvidiaPreferredGpu.Integrated }, writes);
+            Assert.IsNull(store.GetCurrent().Tuning.OriginalPreferredGpuMcCompat);
+            Assert.AreEqual(0x10L, store.GetCurrent().Tuning.OriginalPreferredGpuRenderingMode);
+
+            vm.ApplyPreferredGpuForMode(4); // Performance: left alone, so NVIDIA's values go back
+            Assert.AreEqual(original, restores.Single());
+            Assert.IsNull(store.GetCurrent().Tuning.LastAppliedPreferredGpu);
+        }
+        finally { Directory.Delete(folder, true); }
+    }
+
+    [TestMethod]
     public void Updater_ParsesForkTagsAndComparesBuilds()
     {
         Assert.AreEqual((new Version(3, 1, 3), 7), PreySense.Frontend.Services.ForkUpdateService.ParseTag("igpu-3.1.3-7"));

@@ -50,6 +50,8 @@ namespace PreySense.Frontend.ViewModels
 
         private bool UpdatePowerSourceState(PowerSourceKind source)
         {
+            // A GPU mode picked by hand on battery lasts until the power source changes.
+            if (source != _currentPowerSource) _igpuOnlyBatteryOverride = false;
             _currentPowerSource = source;
             if (source == PowerSourceKind.Unknown)
             {

@@ -126,10 +126,22 @@ public partial class MainWindow
         RunOnUi(() =>
         {
             if (_isExplicitExit) return;
-            if (IsVisible && !App.SuppressAutoHide && IsApplicationForeground(GetForegroundWindow()) == true)
-                HideApplicationWindowsForAutoHide();
+            if (IsVisible && WindowState != WindowState.Minimized && IsApplicationForeground(GetForegroundWindow()) == true)
+            {
+                if (!App.SuppressAutoHide) HideApplicationWindowsForAutoHide();
+                // A dialog or settings page is open (Tuning, Lighting, Power Diagnostics, a confirmation...).
+                // Hiding would end that dialog, so minimize instead: its windows go with the main window and
+                // come back exactly as they were on the next press.
+                else MinimizeApplicationWindows();
+            }
             else ShowAndRestore();
         });
+    }
+
+    private void MinimizeApplicationWindows()
+    {
+        SetApplicationTopmost(false);
+        WindowState = WindowState.Minimized;
     }
 
     private static int OwnerDepth(Window window)

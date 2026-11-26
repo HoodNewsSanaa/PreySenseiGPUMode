@@ -61,6 +61,45 @@ namespace PreySense.Frontend.Views
             finally { App.SuppressAutoHide = previousSuppression; }
         }
 
+        private async void BtnMoveOffRtx_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is not ViewModels.MainViewModel vm) return;
+            bool previousSuppression = App.SuppressAutoHide;
+            App.SuppressAutoHide = true;
+            try
+            {
+                var (problem, apps) = await vm.CheckAppsOnDiscreteGpuAsync();
+                if (problem != null)
+                {
+                    ShowMoveOffRtxMessage(problem, showCancel: false);
+                    return;
+                }
+                string question = Services.LocalizationService.Format(
+                    "These apps are using the RTX: {0}. PreySense will restart the RTX so they move to the integrated GPU. Most apps carry on; games and some apps may close, so save your work first. Continue?",
+                    string.Join(", ", apps));
+                if (!ShowMoveOffRtxMessage(question, showCancel: true)) return;
+                string result = await vm.MoveAppsOffDiscreteGpuAsync();
+                ShowMoveOffRtxMessage(Services.LocalizationService.Translate(result), showCancel: false);
+            }
+            catch (System.Exception ex) { PreySense.AppLogger.Error($"Move apps off the RTX failed: {ex}"); }
+            finally { App.SuppressAutoHide = previousSuppression; }
+        }
+
+        private bool ShowMoveOffRtxMessage(string message, bool showCancel)
+        {
+            var dialog = new CustomModalDialog
+            {
+                Owner = this,
+                Title = "PreySense — Move apps off the RTX",
+                HeaderSubtitle = " — Move apps off the RTX",
+                Message = Services.LocalizationService.Translate(message),
+                ConfirmText = Services.LocalizationService.Translate(showCancel ? "Move" : "OK"),
+                ShowCancelButton = showCancel
+            };
+            if (showCancel) dialog.CancelText = Services.LocalizationService.Translate("Cancel");
+            return dialog.ShowDialog() == true;
+        }
+
         private void BtnOpenPowerDiagnostics_Click(object sender, RoutedEventArgs e)
         {
             bool previousSuppression = App.SuppressAutoHide;

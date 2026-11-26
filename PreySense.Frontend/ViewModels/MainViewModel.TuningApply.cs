@@ -282,6 +282,7 @@ public partial class MainViewModel
                 profile.PcieLinkPowerSaving = null;
                 profile.CpuMaxStatePercent = null;
                 profile.CpuMaxStateEfficientPercent = null;
+                profile.PreferredGpu = null;
             }
             cfg.Tuning.ProchotOffsetCelsius = null;
             cfg.Tuning.ApplyProchotOffset = false;

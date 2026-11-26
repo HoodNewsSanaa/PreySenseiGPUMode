@@ -29,6 +29,13 @@ public partial class MainViewModel
     internal Func<PowerPlanSetting, int?, int?, bool>? CpuMaxStateRestorer { get; set; }
     internal Func<PowerPlanSetting, bool, int?>? CpuMaxStateReader { get; set; }
 
+    /// <summary>Test seams for NVIDIA's preferred GPU: read the current values, write one, restore saved values.</summary>
+    internal Func<(NvidiaSettingsResult Result, NvidiaPreferredGpuValues Values)>? PreferredGpuReader { get; set; }
+    internal Func<uint, NvidiaSettingsResult>? PreferredGpuWriter { get; set; }
+    internal Func<NvidiaPreferredGpuValues, NvidiaSettingsResult>? PreferredGpuRestorer { get; set; }
+
+    private readonly object _preferredGpuGate = new();
+
     /// <summary>Test seam for the PROCHOT writer used when the edited mode is already active.</summary>
     internal Func<int, bool>? ProchotOffsetWriter { get; set; }
 
@@ -297,5 +304,106 @@ public partial class MainViewModel
                 AppLogger.Log($"[CPU state] {GetModeTitle(mode)}: Windows' {label} max processor state restored.");
             }
         }
+    }
+
+    internal int? PreferredGpuForModeIndex(int modeIndex) => SavedTuningMode(modeIndex).PreferredGpu;
+
+    /// <summary>Saves a mode's NVIDIA preferred GPU (null = leave NVIDIA's setting) and applies it if that mode is active.</summary>
+    internal async Task SetPreferredGpuForModeIndexAsync(int modeIndex, int? value)
+    {
+        if (!NvidiaPreferredGpu.IsValid(value)) value = null;
+        byte mode = ModeIndexToByte(modeIndex);
+        TuningStore.Update(cfg => ProfileForMode(cfg.Tuning, mode).PreferredGpu = value);
+        if (mode == ActivePowerMode)
+            await Task.Run(() => ApplyPreferredGpuForMode(mode, force: true));
+    }
+
+    /// <summary>
+    /// Writes the mode's preferred GPU to NVIDIA's global settings. Nothing is sent when PreySense already set
+    /// that value, so switching between modes with the same choice never touches the driver. The first time,
+    /// NVIDIA's own values are saved, and they are written back for modes that leave the setting alone. While
+    /// the RTX is switched off (iGPU Only) NVIDIA's settings can't be reached; it is sent when the RTX comes back.
+    /// </summary>
+    internal void ApplyPreferredGpuForMode(byte mode) => ApplyPreferredGpuForMode(mode, force: false);
+
+    internal void ApplyPreferredGpuForMode(byte mode, bool force)
+    {
+        try
+        {
+            if (!ProfileManager.IsSupportedMode(mode)) return;
+            lock (_preferredGpuGate)
+            {
+                var tuning = (TuningConfigurationReader?.Invoke() ?? TuningStore.GetCurrent()).Tuning;
+                int? wanted = ProfileForMode(tuning, mode).PreferredGpu;
+                if (NvidiaPreferredGpu.IsValid(wanted))
+                {
+                    if (!force && tuning.LastAppliedPreferredGpu == wanted) return;
+                    NvidiaPreferredGpuValues original = new(
+                        tuning.OriginalPreferredGpuMcCompat is long m ? (uint)m : null,
+                        tuning.OriginalPreferredGpuRenderingMode is long r ? (uint)r : null);
+                    if (tuning.LastAppliedPreferredGpu is null)
+                    {
+                        var (readResult, values) = PreferredGpuReader?.Invoke() ?? ReadPreferredGpu();
+                        if (readResult != NvidiaSettingsResult.Ok) { LogPreferredGpuResult(mode, readResult); return; }
+                        original = values;
+                    }
+                    var result = (PreferredGpuWriter ?? NvidiaPreferredGpu.Apply)((uint)wanted!.Value);
+                    if (result == NvidiaSettingsResult.Ok)
+                    {
+                        TuningStore.Update(cfg =>
+                        {
+                            cfg.Tuning.LastAppliedPreferredGpu = wanted;
+                            cfg.Tuning.OriginalPreferredGpuMcCompat = original.McCompat;
+                            cfg.Tuning.OriginalPreferredGpuRenderingMode = original.RenderingMode;
+                        });
+                        AppLogger.Log($"[Preferred GPU] {GetModeTitle(mode)}: {PreferredGpuName(wanted.Value)}.");
+                    }
+                    else LogPreferredGpuResult(mode, result);
+                }
+                else if (tuning.LastAppliedPreferredGpu is not null)
+                {
+                    var original = new NvidiaPreferredGpuValues(
+                        tuning.OriginalPreferredGpuMcCompat is long m ? (uint)m : null,
+                        tuning.OriginalPreferredGpuRenderingMode is long r ? (uint)r : null);
+                    var result = (PreferredGpuRestorer ?? NvidiaPreferredGpu.Restore)(original);
+                    if (result == NvidiaSettingsResult.Ok)
+                    {
+                        TuningStore.Update(cfg =>
+                        {
+                            cfg.Tuning.LastAppliedPreferredGpu = null;
+                            cfg.Tuning.OriginalPreferredGpuMcCompat = null;
+                            cfg.Tuning.OriginalPreferredGpuRenderingMode = null;
+                        });
+                        AppLogger.Log($"[Preferred GPU] {GetModeTitle(mode)}: NVIDIA's own setting restored.");
+                    }
+                    else LogPreferredGpuResult(mode, result);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("[Preferred GPU] " + ex.Message);
+        }
+    }
+
+    private static (NvidiaSettingsResult, NvidiaPreferredGpuValues) ReadPreferredGpu()
+    {
+        var result = NvidiaPreferredGpu.Read(out var values);
+        return (result, values);
+    }
+
+    private static string PreferredGpuName(int value) => (uint)value switch
+    {
+        NvidiaPreferredGpu.Integrated => "Integrated graphics",
+        NvidiaPreferredGpu.Nvidia => "NVIDIA",
+        _ => "Auto-select"
+    };
+
+    private void LogPreferredGpuResult(byte mode, NvidiaSettingsResult result)
+    {
+        if (result == NvidiaSettingsResult.NoNvidiaGpu)
+            AppLogger.Log($"[Preferred GPU] {GetModeTitle(mode)}: RTX is off; will apply when it is switched back on.");
+        else
+            AppLogger.Error($"[Preferred GPU] {GetModeTitle(mode)}: NVIDIA's settings could not be changed.");
     }
 }

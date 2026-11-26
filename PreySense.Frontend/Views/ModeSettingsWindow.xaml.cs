@@ -43,6 +43,7 @@ namespace PreySense.Frontend.Views
             DropdownModePcie.SelectionChanged += ModePcieDropdown_Changed;
             DropdownModeCpuStateP.SelectionChanged += ModeCpuStateDropdown_Changed;
             DropdownModeCpuStateE.SelectionChanged += ModeCpuStateDropdown_Changed;
+            DropdownModePreferredGpu.SelectionChanged += ModePreferredGpuDropdown_Changed;
             Closed += (_, _) =>
             {
                 DropdownModeProchot.SelectionChanged -= ModeProchotDropdown_Changed;
@@ -51,6 +52,7 @@ namespace PreySense.Frontend.Views
                 DropdownModePcie.SelectionChanged -= ModePcieDropdown_Changed;
                 DropdownModeCpuStateP.SelectionChanged -= ModeCpuStateDropdown_Changed;
                 DropdownModeCpuStateE.SelectionChanged -= ModeCpuStateDropdown_Changed;
+                DropdownModePreferredGpu.SelectionChanged -= ModePreferredGpuDropdown_Changed;
                 _verificationTimer.Stop();
                 if (DataContext is MainViewModel vm)
                     vm.PropertyChanged -= OnTuningVmPropertyChanged;
@@ -697,6 +699,30 @@ namespace PreySense.Frontend.Views
 
             FillCpuStateDropdown(DropdownModeCpuStateP, vm.CpuMaxStateForModeIndex(_selectedModeIndex, efficientCores: false));
             FillCpuStateDropdown(DropdownModeCpuStateE, vm.CpuMaxStateForModeIndex(_selectedModeIndex, efficientCores: true));
+
+            if (DropdownModePreferredGpu.Items.Count == 0)
+            {
+                DropdownModePreferredGpu.Items.Add(Services.LocalizationService.Translate("NVIDIA default"));
+                DropdownModePreferredGpu.Items.Add(Services.LocalizationService.Translate("Integrated graphics"));
+                DropdownModePreferredGpu.Items.Add(Services.LocalizationService.Translate("Auto-select"));
+                DropdownModePreferredGpu.Items.Add(Services.LocalizationService.Translate("NVIDIA processor"));
+            }
+            int preferred = Array.IndexOf(ModePreferredGpuChoices, vm.PreferredGpuForModeIndex(_selectedModeIndex) ?? -1);
+            DropdownModePreferredGpu.SelectedIndex = Math.Max(0, preferred);
+        }
+
+        /// <summary>Preferred GPU dropdown values in order; -1 = leave NVIDIA's setting alone.</summary>
+        internal static readonly int[] ModePreferredGpuChoices =
+        {
+            -1, (int)PreySense.Gpu.NvidiaPreferredGpu.Integrated, (int)PreySense.Gpu.NvidiaPreferredGpu.AutoSelect,
+            (int)PreySense.Gpu.NvidiaPreferredGpu.Nvidia
+        };
+
+        private async void ModePreferredGpuDropdown_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (_isUpdatingUi || DataContext is not MainViewModel vm || DropdownModePreferredGpu.SelectedIndex < 0) return;
+            int value = ModePreferredGpuChoices[Math.Min(DropdownModePreferredGpu.SelectedIndex, ModePreferredGpuChoices.Length - 1)];
+            await vm.SetPreferredGpuForModeIndexAsync(_selectedModeIndex, value < 0 ? null : value);
         }
 
         /// <summary>Choices for the maximum processor state, in percent; 0 = leave Windows' setting.</summary>

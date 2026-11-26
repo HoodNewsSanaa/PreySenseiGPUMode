@@ -62,6 +62,11 @@
                                                       OffText="Disabled"
                                                       SwitchWidth="120"/>
 
+                            <controls:SettingSwitchRow Title="iGPU Only on battery"
+                                                      IsChecked="{Binding IsIgpuOnlyOnBatteryEnabled, Mode=OneWay}"
+                                                      Command="{Binding ToggleIgpuOnlyOnBatteryCommand}"
+                                                      SwitchWidth="92"/>
+
                             <controls:SettingSwitchRow Title="Sleep in Background"
                                                       IsChecked="{Binding IsSleepInBackgroundEnabled, Mode=OneWay}"
                                                       Command="{Binding ToggleSleepInBackgroundCommand}"
@@ -113,6 +118,8 @@
                                 Click="BtnOpenLightingModeSettings_Click"/>
                             <controls:SettingActionRow x:Name="RowPowerDiagnostics" Title="Power Diagnostics" ActionText="Open"
                                 Click="BtnOpenPowerDiagnostics_Click"/>
+                            <controls:SettingActionRow x:Name="RowMoveOffRtx" Title="Move apps off the RTX" ActionText="Move"
+                                Click="BtnMoveOffRtx_Click"/>
                             <controls:SettingActionRow x:Name="RowForkUpdates" Title="Updates" ActionText="Check now"
                                 Click="BtnCheckForkUpdates_Click"/>
                         </StackPanel>

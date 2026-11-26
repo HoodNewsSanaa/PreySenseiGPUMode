@@ -247,6 +247,20 @@ namespace PreySense.Core.Configuration
         [JsonPropertyOrder(15)]
         public int? OriginalCpuMaxStateEfficientPercentDc { get; set; }
 
+        /// <summary>iGPU Only fork: the NVIDIA preferred GPU PreySense last wrote; null when none is in place.</summary>
+        [JsonPropertyOrder(15)]
+        public int? LastAppliedPreferredGpu { get; set; }
+
+        /// <summary>
+        /// iGPU Only fork: NVIDIA's two Optimus settings (SHIM_MCCOMPAT, SHIM_RENDERING_MODE) from before PreySense
+        /// changed them; null means the driver default was in use. Meaningful only while LastAppliedPreferredGpu is set.
+        /// </summary>
+        [JsonPropertyOrder(15)]
+        public long? OriginalPreferredGpuMcCompat { get; set; }
+
+        [JsonPropertyOrder(15)]
+        public long? OriginalPreferredGpuRenderingMode { get; set; }
+
         /// <summary>Driver-read factory profiles, saved only after all five modes were captured.</summary>
         [JsonPropertyOrder(14)]
         public Dictionary<string, ModeTuningConfig> FactoryDefaults { get; set; } = new();
@@ -320,6 +334,9 @@ namespace PreySense.Core.Configuration
             LastAppliedCpuMaxStateEfficientPercent = LastAppliedCpuMaxStateEfficientPercent,
             OriginalCpuMaxStateEfficientPercentAc = OriginalCpuMaxStateEfficientPercentAc,
             OriginalCpuMaxStateEfficientPercentDc = OriginalCpuMaxStateEfficientPercentDc,
+            LastAppliedPreferredGpu = LastAppliedPreferredGpu,
+            OriginalPreferredGpuMcCompat = OriginalPreferredGpuMcCompat,
+            OriginalPreferredGpuRenderingMode = OriginalPreferredGpuRenderingMode,
             FactoryDefaults = FactoryDefaults?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.Clone()!)!,
             Quiet = Quiet?.Clone()!,
             Eco = Eco?.Clone()!,
@@ -469,6 +486,13 @@ namespace PreySense.Core.Configuration
         /// </summary>
         [JsonPropertyOrder(19)]
         public int? CpuMaxStateEfficientPercent { get; set; }
+
+        /// <summary>
+        /// iGPU Only fork: NVIDIA Control Panel's global "Preferred graphics processor" for this mode
+        /// (0 = Integrated, 1 = NVIDIA, 16 = Auto-select). Null leaves NVIDIA's own setting alone.
+        /// </summary>
+        [JsonPropertyOrder(20)]
+        public int? PreferredGpu { get; set; }
     }
 
     public sealed class FanConfig

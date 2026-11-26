@@ -73,6 +73,11 @@
                 "title": "Max processor state, E-cores (%)",
                 "description": "iGPU Only fork: Windows Maximum processor state for the E-cores in this mode. Null leaves Windows' setting alone."
               },
+              "PreferredGpu": {
+                "type": ["integer", "null"], "enum": [0, 1, 16, null],
+                "title": "Preferred GPU (NVIDIA)",
+                "description": "iGPU Only fork: NVIDIA Control Panel's global Preferred graphics processor in this mode (0 Integrated, 1 NVIDIA, 16 Auto-select). Null leaves NVIDIA's setting alone."
+              },
               "GpuPowerWatts": { "type": ["integer", "null"], "minimum": 5, "maximum": 999 },
               "ApplyCpuBoost": { "type": "boolean", "default": false },
               "CpuBoostMode": { "type": ["integer", "null"], "minimum": 0, "maximum": 6 }
