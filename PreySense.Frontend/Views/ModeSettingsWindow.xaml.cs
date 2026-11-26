@@ -40,11 +40,13 @@ namespace PreySense.Frontend.Views
             DropdownModeProchot.SelectionChanged += ModeProchotDropdown_Changed;
             DropdownModeCpuCap.SelectionChanged += ModeCpuCapDropdown_Changed;
             DropdownModeGpuClock.SelectionChanged += ModeGpuClockDropdown_Changed;
+            DropdownModePcie.SelectionChanged += ModePcieDropdown_Changed;
             Closed += (_, _) =>
             {
                 DropdownModeProchot.SelectionChanged -= ModeProchotDropdown_Changed;
                 DropdownModeCpuCap.SelectionChanged -= ModeCpuCapDropdown_Changed;
                 DropdownModeGpuClock.SelectionChanged -= ModeGpuClockDropdown_Changed;
+                DropdownModePcie.SelectionChanged -= ModePcieDropdown_Changed;
                 _verificationTimer.Stop();
                 if (DataContext is MainViewModel vm)
                     vm.PropertyChanged -= OnTuningVmPropertyChanged;
@@ -677,6 +679,24 @@ namespace PreySense.Frontend.Views
                 _customGpuClockMhz = customGpu;
             }
             DropdownModeGpuClock.SelectedIndex = Math.Max(0, gpuIndex);
+
+            if (DropdownModePcie.Items.Count == 0)
+            {
+                // Index 0 = leave Windows' setting; 1..3 = Off, Moderate, Maximum (stored as 0..2).
+                DropdownModePcie.Items.Add(Services.LocalizationService.Translate("Windows default"));
+                DropdownModePcie.Items.Add(Services.LocalizationService.Translate("Off"));
+                DropdownModePcie.Items.Add(Services.LocalizationService.Translate("Moderate"));
+                DropdownModePcie.Items.Add(Services.LocalizationService.Translate("Maximum savings"));
+            }
+            int? pcie = vm.PcieLinkPowerSavingForModeIndex(_selectedModeIndex);
+            DropdownModePcie.SelectedIndex = pcie is >= 0 and <= 2 ? pcie.Value + 1 : 0;
+        }
+
+        private async void ModePcieDropdown_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (_isUpdatingUi || DataContext is not MainViewModel vm || DropdownModePcie.SelectedIndex < 0) return;
+            int index = DropdownModePcie.SelectedIndex;
+            await vm.SetPcieLinkPowerSavingForModeIndexAsync(_selectedModeIndex, index == 0 ? null : index - 1);
         }
 
         /// <summary>Choices for the RTX clock limit, in MHz; 0 = no limit.</summary>

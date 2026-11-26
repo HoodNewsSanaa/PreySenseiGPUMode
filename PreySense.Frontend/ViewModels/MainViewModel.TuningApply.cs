@@ -279,6 +279,7 @@ public partial class MainViewModel
                 profile.ProchotOffsetOverrideCelsius = null;
                 profile.CpuMaxFrequencyMhz = null;
                 profile.GpuMaxClockMhz = null;
+                profile.PcieLinkPowerSaving = null;
             }
             cfg.Tuning.ProchotOffsetCelsius = null;
             cfg.Tuning.ApplyProchotOffset = false;

@@ -142,7 +142,8 @@ namespace PreySense.Frontend
             ((ViewModels.MainViewModel)mainWindow.DataContext).NotifyApplicationReady();
             Services.OverlayBridge.StartIfNeeded();
 
-            _ = Services.UpdateCheckService.CheckForUpdatesAsync();
+            // iGPU Only fork: check this fork's releases (upstream builds lack the fork's features).
+            _ = Services.ForkUpdateService.CheckOnStartupAsync();
 
             if (startMinimized)
             {

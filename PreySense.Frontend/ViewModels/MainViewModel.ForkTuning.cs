@@ -19,6 +19,11 @@ public partial class MainViewModel
     /// <summary>Test seam for the RTX clock limit: (MHz or 0, reset driver) → reached the driver now.</summary>
     internal Func<int, bool, bool>? GpuClockLockRequester { get; set; }
 
+    /// <summary>Test seams for the PCIe link power setting: write a level, restore AC/DC, read AC (false) or DC (true).</summary>
+    internal Func<int, bool>? PcieLinkPowerWriter { get; set; }
+    internal Func<int?, int?, bool>? PcieLinkPowerRestorer { get; set; }
+    internal Func<bool, int?>? PcieLinkPowerReader { get; set; }
+
     /// <summary>Test seam for the PROCHOT writer used when the edited mode is already active.</summary>
     internal Func<int, bool>? ProchotOffsetWriter { get; set; }
 
@@ -144,6 +149,74 @@ public partial class MainViewModel
         catch (Exception ex)
         {
             AppLogger.Error("[CPU cap] " + ex.Message);
+        }
+    }
+
+    internal int? PcieLinkPowerSavingForModeIndex(int modeIndex) => SavedTuningMode(modeIndex).PcieLinkPowerSaving;
+
+    /// <summary>Saves a mode's PCIe link power level (null = leave Windows' setting) and applies it if that mode is active.</summary>
+    internal async Task SetPcieLinkPowerSavingForModeIndexAsync(int modeIndex, int? level)
+    {
+        if (!PcieLinkPowerSaving.IsValid(level)) level = null;
+        byte mode = ModeIndexToByte(modeIndex);
+        TuningStore.Update(cfg => ProfileForMode(cfg.Tuning, mode).PcieLinkPowerSaving = level);
+        if (mode == ActivePowerMode)
+            await Task.Run(() => ApplyPcieLinkPowerSavingForMode(mode));
+    }
+
+    /// <summary>
+    /// Writes the mode's PCIe link power level. The first time, Windows' own values are saved, and they are
+    /// written back when PreySense switches to a mode that leaves the setting alone.
+    /// </summary>
+    internal void ApplyPcieLinkPowerSavingForMode(byte mode)
+    {
+        try
+        {
+            if (!ProfileManager.IsSupportedMode(mode)) return;
+            var tuning = (TuningConfigurationReader?.Invoke() ?? TuningStore.GetCurrent()).Tuning;
+            int? level = ProfileForMode(tuning, mode).PcieLinkPowerSaving;
+            if (PcieLinkPowerSaving.IsValid(level))
+            {
+                int? originalAc = tuning.OriginalPcieLinkPowerSavingAc, originalDc = tuning.OriginalPcieLinkPowerSavingDc;
+                if (tuning.LastAppliedPcieLinkPowerSaving is null)
+                {
+                    var read = PcieLinkPowerReader ?? PcieLinkPowerSaving.Read;
+                    originalAc = read(false);
+                    originalDc = read(true);
+                }
+                if ((PcieLinkPowerWriter ?? PcieLinkPowerSaving.Apply)(level!.Value))
+                {
+                    TuningStore.Update(cfg =>
+                    {
+                        cfg.Tuning.LastAppliedPcieLinkPowerSaving = level;
+                        cfg.Tuning.OriginalPcieLinkPowerSavingAc = originalAc;
+                        cfg.Tuning.OriginalPcieLinkPowerSavingDc = originalDc;
+                    });
+                    AppLogger.Log($"[PCIe] {GetModeTitle(mode)}: link power saving {level}.");
+                }
+                else
+                {
+                    AppLogger.Error("[PCIe] Windows refused the PCIe link power setting.");
+                }
+            }
+            else if (tuning.LastAppliedPcieLinkPowerSaving is not null)
+            {
+                if ((PcieLinkPowerRestorer ?? PcieLinkPowerSaving.Restore)(
+                        tuning.OriginalPcieLinkPowerSavingAc, tuning.OriginalPcieLinkPowerSavingDc))
+                {
+                    TuningStore.Update(cfg =>
+                    {
+                        cfg.Tuning.LastAppliedPcieLinkPowerSaving = null;
+                        cfg.Tuning.OriginalPcieLinkPowerSavingAc = null;
+                        cfg.Tuning.OriginalPcieLinkPowerSavingDc = null;
+                    });
+                    AppLogger.Log($"[PCIe] {GetModeTitle(mode)}: Windows' link power setting restored.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("[PCIe] " + ex.Message);
         }
     }
 }

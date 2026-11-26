@@ -51,6 +51,16 @@ namespace PreySense.Frontend.Views
         }
 
         // iGPU Only fork: live power readings (sampled only while the window is open).
+        // iGPU Only fork: check this fork's releases now and offer to install a newer build.
+        private async void BtnCheckForkUpdates_Click(object sender, RoutedEventArgs e)
+        {
+            bool previousSuppression = App.SuppressAutoHide;
+            App.SuppressAutoHide = true;
+            try { await Services.ForkUpdateService.CheckNowAsync(); }
+            catch (System.Exception ex) { PreySense.AppLogger.Error($"Update check failed: {ex}"); }
+            finally { App.SuppressAutoHide = previousSuppression; }
+        }
+
         private void BtnOpenPowerDiagnostics_Click(object sender, RoutedEventArgs e)
         {
             bool previousSuppression = App.SuppressAutoHide;

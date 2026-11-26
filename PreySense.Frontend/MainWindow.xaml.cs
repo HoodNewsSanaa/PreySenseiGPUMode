@@ -45,6 +45,7 @@ namespace PreySense.Frontend
             IsVisibleChanged += (_, _) =>
             {
                 UpdateBackgroundState();
+                if (IsVisible) Services.ForkUpdateService.OnMainWindowShown();
                 _windowActivityEvents?.Dispose();
                 _windowActivityEvents = IsVisible
                     ? new ForegroundWindowEvents(window =>

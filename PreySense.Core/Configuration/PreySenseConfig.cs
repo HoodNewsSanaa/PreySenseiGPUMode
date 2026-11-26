@@ -214,6 +214,17 @@ namespace PreySense.Core.Configuration
         [JsonPropertyOrder(15)]
         public int? LastAppliedGpuClockLockMhz { get; set; }
 
+        /// <summary>iGPU Only fork: the PCIe link power level PreySense last wrote; null when none is in place.</summary>
+        [JsonPropertyOrder(15)]
+        public int? LastAppliedPcieLinkPowerSaving { get; set; }
+
+        /// <summary>iGPU Only fork: Windows' PCIe link power values (AC/DC) from before PreySense changed them.</summary>
+        [JsonPropertyOrder(15)]
+        public int? OriginalPcieLinkPowerSavingAc { get; set; }
+
+        [JsonPropertyOrder(15)]
+        public int? OriginalPcieLinkPowerSavingDc { get; set; }
+
         /// <summary>Driver-read factory profiles, saved only after all five modes were captured.</summary>
         [JsonPropertyOrder(14)]
         public Dictionary<string, ModeTuningConfig> FactoryDefaults { get; set; } = new();
@@ -278,6 +289,9 @@ namespace PreySense.Core.Configuration
             FactoryStaticCpuPl2Watts = FactoryStaticCpuPl2Watts,
             LastAppliedCpuFrequencyCapMhz = LastAppliedCpuFrequencyCapMhz,
             LastAppliedGpuClockLockMhz = LastAppliedGpuClockLockMhz,
+            LastAppliedPcieLinkPowerSaving = LastAppliedPcieLinkPowerSaving,
+            OriginalPcieLinkPowerSavingAc = OriginalPcieLinkPowerSavingAc,
+            OriginalPcieLinkPowerSavingDc = OriginalPcieLinkPowerSavingDc,
             FactoryDefaults = FactoryDefaults?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.Clone()!)!,
             Quiet = Quiet?.Clone()!,
             Eco = Eco?.Clone()!,
@@ -406,6 +420,13 @@ namespace PreySense.Core.Configuration
         /// </summary>
         [JsonPropertyOrder(16)]
         public int? GpuMaxClockMhz { get; set; }
+
+        /// <summary>
+        /// iGPU Only fork: Windows PCIe Link State Power Management for this mode (0 = Off, 1 = Moderate,
+        /// 2 = Maximum power savings). Null leaves Windows' own setting alone.
+        /// </summary>
+        [JsonPropertyOrder(17)]
+        public int? PcieLinkPowerSaving { get; set; }
     }
 
     public sealed class FanConfig

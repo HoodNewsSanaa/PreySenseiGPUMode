@@ -68,6 +68,7 @@ public partial class MainViewModel
     {
         ApplyCpuFrequencyCapForMode(mode);
         ApplyGpuClockLockForMode(mode);
+        ApplyPcieLinkPowerSavingForMode(mode);
         if (!IsModeCpuBoostTuningEnabled(mode)) return true;
         int boost = CpuBoostModeForMode(mode);
         if (_dispatcher == null || _dispatcher.CheckAccess()) CpuBoostMode = boost;
@@ -83,6 +84,7 @@ public partial class MainViewModel
         {
             ApplyCpuFrequencyCapForMode(mode);
             ApplyGpuClockLockForMode(mode);
+            ApplyPcieLinkPowerSavingForMode(mode);
         });
         if (!IsModeCpuBoostTuningEnabled(mode)) return true;
         return await WriteCpuBoostAsync(mode);

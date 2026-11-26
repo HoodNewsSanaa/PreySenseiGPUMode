@@ -113,6 +113,8 @@
                                 Click="BtnOpenLightingModeSettings_Click"/>
                             <controls:SettingActionRow x:Name="RowPowerDiagnostics" Title="Power Diagnostics" ActionText="Open"
                                 Click="BtnOpenPowerDiagnostics_Click"/>
+                            <controls:SettingActionRow x:Name="RowForkUpdates" Title="Updates" ActionText="Check now"
+                                Click="BtnCheckForkUpdates_Click"/>
                         </StackPanel>
                     </Border>
 

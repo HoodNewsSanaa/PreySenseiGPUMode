@@ -108,6 +108,9 @@ jobs:
       - name: Publish
         if: steps.check.outputs.skip != 'true'
         shell: pwsh
+        env:
+          # Baked into the exe so the built-in updater knows which build it is (matches the tag below).
+          ForkBuild: ${{ github.run_number }}
         run: ./.github/publish.ps1
 
       - name: Release details

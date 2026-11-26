@@ -26,4 +26,8 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
+  <!-- iGPU Only fork: the release workflow passes its run number (ForkBuild) so the updater can compare builds. -->
+  <ItemGroup Condition="'$(ForkBuild)' != ''">
+    <AssemblyMetadata Include="ForkBuild" Value="$(ForkBuild)" />
+  </ItemGroup>
 </Project>

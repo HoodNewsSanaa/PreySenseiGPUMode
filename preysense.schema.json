@@ -58,6 +58,11 @@
                 "title": "Max RTX clock (MHz)",
                 "description": "iGPU Only fork: caps the RTX core clock in this mode, like nvidia-smi -lgc. Null means no limit."
               },
+              "PcieLinkPowerSaving": {
+                "type": ["integer", "null"], "minimum": 0, "maximum": 2,
+                "title": "PCIe link power saving",
+                "description": "iGPU Only fork: Windows PCIe Link State Power Management in this mode (0 Off, 1 Moderate, 2 Maximum). Null leaves Windows' setting alone."
+              },
               "GpuPowerWatts": { "type": ["integer", "null"], "minimum": 5, "maximum": 999 },
               "ApplyCpuBoost": { "type": "boolean", "default": false },
               "CpuBoostMode": { "type": ["integer", "null"], "minimum": 0, "maximum": 6 }

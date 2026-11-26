@@ -44,12 +44,23 @@ disabling it in Device Manager). No app can use it, so it stays fully powered do
   the high-voltage end of its curve, so it runs cooler and quieter. It's only sent while the RTX is awake; while it
   sleeps, PreySense waits for it to wake instead of waking it. It's sent again when iGPU Only switches the RTX back on.
 
-All three save and apply as soon as you pick a value.
+- **PCIe power saving**: Windows' PCIe Link State Power Management for that mode (Off, Moderate or Maximum
+  savings). Maximum lets the SSD, Wi-Fi and other PCIe links sleep, which the processor needs before it can reach
+  its deeper idle states. "Windows default" leaves Windows' own setting alone; the first time PreySense changes it,
+  it saves Windows' values and writes them back when you switch to a mode set to "Windows default".
+
+All of these save and apply as soon as you pick a value.
 
 **Power Diagnostics** (Settings → Power Diagnostics): battery drain, CPU package power, the rest of the system
 (battery minus CPU), the RTX's power state, and how much of each second the CPU package spends in C2/C3/C6/C8/C10.
 It reads once a second only while the window is open. The C-state counters are read only on Intel CPUs known to
 have them (12th gen through Core Ultra 200).
+
+**Updates** (Settings → Updates → Check now, and automatically once at startup): checks this fork's releases.
+When a newer build is out it offers to install it: PreySense downloads `PreySense.exe` from the release, installs it
+only if its SHA-256 matches the checksum GitHub lists for that file, keeps the current version next to it as
+`PreySense.previous.exe` (rename it back to roll back), and restarts. Copies not built by the release workflow
+don't update themselves.
 
 **Sleep in Background** (Settings, on by default): while PreySense's window is hidden or minimized, it runs in
 Windows' efficiency mode, stops sensor polling (also when minimized), releases NVIDIA's monitoring library and checks

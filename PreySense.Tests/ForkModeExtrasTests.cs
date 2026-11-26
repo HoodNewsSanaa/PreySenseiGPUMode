@@ -221,4 +221,78 @@ public class ForkModeExtrasTests
         }
         finally { Directory.Delete(folder, true); }
     }
+
+    [TestMethod]
+    public void PcieLinkPower_SavesWindowsValuesAndRestoresThem()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "PreySensePcie-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var store = new ConfigurationService(Path.Combine(folder, "preysense.json"));
+            store.Update(config =>
+            {
+                config.Tuning.Eco.PcieLinkPowerSaving = 2;
+                config.Tuning.Balanced.PcieLinkPowerSaving = 1;
+            });
+            var vm = (MainViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
+            vm.TuningConfigurationStore = store;
+            var writes = new List<int>();
+            var restores = new List<(int? Ac, int? Dc)>();
+            vm.PcieLinkPowerReader = dc => dc ? 1 : 0; // Windows had AC Off, DC Moderate
+            vm.PcieLinkPowerWriter = level => { writes.Add(level); return true; };
+            vm.PcieLinkPowerRestorer = (ac, dc) => { restores.Add((ac, dc)); return true; };
+
+            vm.ApplyPcieLinkPowerSavingForMode(4); // Performance: leave alone, nothing of ours
+            Assert.IsEmpty(writes);
+            Assert.IsEmpty(restores);
+
+            vm.ApplyPcieLinkPowerSavingForMode(6); // Eco: maximum
+            vm.PcieLinkPowerReader = dc => 2;      // now reads PreySense's own value; must not be saved
+            vm.ApplyPcieLinkPowerSavingForMode(1); // Balanced: moderate
+            CollectionAssert.AreEqual(new[] { 2, 1 }, writes);
+            Assert.AreEqual(0, store.GetCurrent().Tuning.OriginalPcieLinkPowerSavingAc);
+            Assert.AreEqual(1, store.GetCurrent().Tuning.OriginalPcieLinkPowerSavingDc);
+
+            vm.ApplyPcieLinkPowerSavingForMode(5); // Turbo: back to Windows' values
+            Assert.AreEqual((0, 1), restores.Single());
+            Assert.IsNull(store.GetCurrent().Tuning.LastAppliedPcieLinkPowerSaving);
+        }
+        finally { Directory.Delete(folder, true); }
+    }
+
+    [TestMethod]
+    public void Updater_ParsesForkTagsAndComparesBuilds()
+    {
+        Assert.AreEqual((new Version(3, 1, 3), 7), PreySense.Frontend.Services.ForkUpdateService.ParseTag("igpu-3.1.3-7"));
+        Assert.IsNull(PreySense.Frontend.Services.ForkUpdateService.ParseTag("v3.1.4"));
+        Assert.IsNull(PreySense.Frontend.Services.ForkUpdateService.ParseTag("igpu-3.1.3"));
+
+        var release = new PreySense.Frontend.Services.ForkRelease("igpu-3.1.3-9", new Version(3, 1, 3), 9,
+            "https://github.com/x", "https://github.com/x/PreySense.exe", new string('a', 64), 0);
+        Assert.IsTrue(PreySense.Frontend.Services.ForkUpdateService.IsNewer(release, new Version(3, 1, 3), 8));
+        Assert.IsFalse(PreySense.Frontend.Services.ForkUpdateService.IsNewer(release, new Version(3, 1, 3), 9));
+        Assert.IsFalse(PreySense.Frontend.Services.ForkUpdateService.IsNewer(release, new Version(3, 1, 4), 1));
+        Assert.IsTrue(PreySense.Frontend.Services.ForkUpdateService.IsNewer(release, new Version(3, 1, 2), 50));
+    }
+
+    [TestMethod]
+    public void Updater_RequiresGitHubAssetWithSha256Digest()
+    {
+        string sha = new string('b', 64);
+        string good = $$"""
+            {"tag_name":"igpu-3.1.4-12","html_url":"https://github.com/HoodNewsSanaa/PreySenseiGPUMode/releases/tag/igpu-3.1.4-12",
+             "assets":[{"name":"PreySense.exe","size":2885124,
+               "browser_download_url":"https://github.com/HoodNewsSanaa/PreySenseiGPUMode/releases/download/igpu-3.1.4-12/PreySense.exe",
+               "digest":"sha256:{{sha}}"}]}
+            """;
+        var release = PreySense.Frontend.Services.ForkUpdateService.ParseRelease(good);
+        Assert.IsNotNull(release);
+        Assert.AreEqual(12, release.Build);
+        Assert.AreEqual(sha, release.Sha256);
+
+        Assert.IsNull(PreySense.Frontend.Services.ForkUpdateService.ParseRelease(good.Replace("sha256:" + sha, "md5:abc")));
+        Assert.IsNull(PreySense.Frontend.Services.ForkUpdateService.ParseRelease(good.Replace("https://github.com/HoodNewsSanaa/PreySenseiGPUMode/releases/download", "http://evil.example")));
+        Assert.IsNull(PreySense.Frontend.Services.ForkUpdateService.ParseRelease(good.Replace("igpu-3.1.4-12\",\"html", "v3.1.4\",\"html")));
+    }
 }

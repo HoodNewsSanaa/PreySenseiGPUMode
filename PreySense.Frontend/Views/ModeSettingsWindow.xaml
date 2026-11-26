@@ -99,6 +99,8 @@
                                     AutomationProperties.AutomationId="ModeCpuFrequencyCap"/>
                                 <controls:SettingDropdownRow x:Name="DropdownModeGpuClock" Title="Max RTX clock" DropdownMinWidth="220"
                                     AutomationProperties.AutomationId="ModeGpuClockLimit"/>
+                                <controls:SettingDropdownRow x:Name="DropdownModePcie" Title="PCIe power saving" DropdownMinWidth="220"
+                                    AutomationProperties.AutomationId="ModePcieLinkPowerSaving"/>
                                 <TextBlock x:Name="ModeExtrasNote" TextWrapping="Wrap" Margin="2,6,2,2"
                                     FontSize="{DynamicResource FontSizeBody}" Foreground="{DynamicResource TextSecondaryBrush}"
                                     Text="Saved and applied right away. The CPU frequency cap is experimental: Windows or Intel software can still lower clocks further. A sleeping RTX gets its clock limit when it next wakes up."/>
