@@ -69,6 +69,10 @@ disabling it in Device Manager). No app can use it, so it stays fully powered do
 
 All of these save and apply as soon as you pick a value.
 
+**Battery widget** (Settings, temporary): a small always-on-top readout of battery drain (now and 30-second
+average), battery percent, estimated time left, CPU package power and whether the RTX is awake. It reads every
+2 seconds while shown and never wakes the RTX. Drag to move; double-click or right-click to close.
+
 **Move apps off the RTX** (Settings): lists the apps using the RTX and, after you confirm, restarts it so they
 move to the integrated GPU (like Legion Toolkit's "deactivate GPU"). Most apps carry on; games and some apps may
 close. Set the mode's preferred GPU to Integrated graphics first, or apps may pick the RTX again. It isn't offered

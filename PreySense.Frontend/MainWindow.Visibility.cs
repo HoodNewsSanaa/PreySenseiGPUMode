@@ -33,7 +33,7 @@ public partial class MainWindow
                 }
                 var preferred = _visibilitySession.PreferredWindow;
                 var visibleWindows = Application.Current.Windows.Cast<Window>()
-                    .Where(window => window is not Views.ModeToastWindow && window.IsVisible && window.IsEnabled).ToArray();
+                    .Where(window => window is not (Views.ModeToastWindow or Views.BatteryWidgetWindow) && window.IsVisible && window.IsEnabled).ToArray();
                 Window target = preferred is { IsVisible: true, IsEnabled: true }
                     ? preferred
                     : visibleWindows.LastOrDefault(window => window.IsActive)
@@ -89,7 +89,7 @@ public partial class MainWindow
     private static void SetApplicationTopmost(bool topmost)
     {
         foreach (Window window in Application.Current.Windows.Cast<Window>().ToArray())
-            if (window is not Views.ModeToastWindow && (!topmost || window.IsVisible))
+            if (window is not (Views.ModeToastWindow or Views.BatteryWidgetWindow) && (!topmost || window.IsVisible))
                 window.Topmost = topmost;
     }
 
@@ -99,7 +99,7 @@ public partial class MainWindow
         {
             if (App.SuppressAutoHide) return;
             var visibleWindows = Application.Current.Windows.Cast<Window>()
-                .Where(window => window is not Views.ModeToastWindow && window.IsVisible).ToArray();
+                .Where(window => window is not (Views.ModeToastWindow or Views.BatteryWidgetWindow) && window.IsVisible).ToArray();
             Window? activeWindow = visibleWindows.LastOrDefault(window => window.IsActive)
                 ?? (visibleWindows.Contains(_lastActiveWindow) ? _lastActiveWindow : null)
                 ?? visibleWindows.OrderBy(OwnerDepth).LastOrDefault();

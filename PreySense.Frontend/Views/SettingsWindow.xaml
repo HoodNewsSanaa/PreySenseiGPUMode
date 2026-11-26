@@ -118,6 +118,8 @@
                                 Click="BtnOpenLightingModeSettings_Click"/>
                             <controls:SettingActionRow x:Name="RowPowerDiagnostics" Title="Power Diagnostics" ActionText="Open"
                                 Click="BtnOpenPowerDiagnostics_Click"/>
+                            <controls:SettingActionRow x:Name="RowBatteryWidget" Title="Battery widget" ActionText="Show / hide"
+                                Click="BtnBatteryWidget_Click"/>
                             <controls:SettingActionRow x:Name="RowMoveOffRtx" Title="Move apps off the RTX" ActionText="Move"
                                 Click="BtnMoveOffRtx_Click"/>
                             <controls:SettingActionRow x:Name="RowForkUpdates" Title="Updates" ActionText="Check now"

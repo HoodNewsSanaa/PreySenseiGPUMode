@@ -61,6 +61,12 @@ namespace PreySense.Frontend.Views
             finally { App.SuppressAutoHide = previousSuppression; }
         }
 
+        private void BtnBatteryWidget_Click(object sender, RoutedEventArgs e)
+        {
+            try { BatteryWidgetWindow.Toggle(); }
+            catch (System.Exception ex) { PreySense.AppLogger.Error($"Battery widget failed: {ex}"); }
+        }
+
         private async void BtnMoveOffRtx_Click(object sender, RoutedEventArgs e)
         {
             if (DataContext is not ViewModels.MainViewModel vm) return;
