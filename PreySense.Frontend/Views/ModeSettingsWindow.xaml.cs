@@ -44,6 +44,7 @@ namespace PreySense.Frontend.Views
             DropdownModeCpuStateP.SelectionChanged += ModeCpuStateDropdown_Changed;
             DropdownModeCpuStateE.SelectionChanged += ModeCpuStateDropdown_Changed;
             DropdownModePreferredGpu.SelectionChanged += ModePreferredGpuDropdown_Changed;
+            DropdownModePhysx.SelectionChanged += ModePhysxDropdown_Changed;
             Closed += (_, _) =>
             {
                 DropdownModeProchot.SelectionChanged -= ModeProchotDropdown_Changed;
@@ -53,6 +54,7 @@ namespace PreySense.Frontend.Views
                 DropdownModeCpuStateP.SelectionChanged -= ModeCpuStateDropdown_Changed;
                 DropdownModeCpuStateE.SelectionChanged -= ModeCpuStateDropdown_Changed;
                 DropdownModePreferredGpu.SelectionChanged -= ModePreferredGpuDropdown_Changed;
+                DropdownModePhysx.SelectionChanged -= ModePhysxDropdown_Changed;
                 _verificationTimer.Stop();
                 if (DataContext is MainViewModel vm)
                     vm.PropertyChanged -= OnTuningVmPropertyChanged;
@@ -709,6 +711,21 @@ namespace PreySense.Frontend.Views
             }
             int preferred = Array.IndexOf(ModePreferredGpuChoices, vm.PreferredGpuForModeIndex(_selectedModeIndex) ?? -1);
             DropdownModePreferredGpu.SelectedIndex = Math.Max(0, preferred);
+
+            if (DropdownModePhysx.Items.Count == 0)
+            {
+                // Index 0 = leave NVIDIA's setting; 1 = CPU (stored as 0).
+                DropdownModePhysx.Items.Add(Services.LocalizationService.Translate("NVIDIA default"));
+                DropdownModePhysx.Items.Add(Services.LocalizationService.Translate("CPU"));
+            }
+            DropdownModePhysx.SelectedIndex = vm.PhysxProcessorForModeIndex(_selectedModeIndex) == PreySense.Gpu.NvidiaPhysx.Cpu ? 1 : 0;
+        }
+
+        private async void ModePhysxDropdown_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (_isUpdatingUi || DataContext is not MainViewModel vm || DropdownModePhysx.SelectedIndex < 0) return;
+            await vm.SetPhysxProcessorForModeIndexAsync(_selectedModeIndex,
+                DropdownModePhysx.SelectedIndex == 1 ? PreySense.Gpu.NvidiaPhysx.Cpu : null);
         }
 
         /// <summary>Preferred GPU dropdown values in order; -1 = leave NVIDIA's setting alone.</summary>

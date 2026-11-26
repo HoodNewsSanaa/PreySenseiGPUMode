@@ -71,6 +71,7 @@ public partial class MainViewModel
         ApplyPcieLinkPowerSavingForMode(mode);
         ApplyCpuMaxStateForMode(mode);
         ApplyPreferredGpuForMode(mode);
+        ApplyPhysxForMode(mode);
         if (!IsModeCpuBoostTuningEnabled(mode)) return true;
         int boost = CpuBoostModeForMode(mode);
         if (_dispatcher == null || _dispatcher.CheckAccess()) CpuBoostMode = boost;
@@ -89,6 +90,7 @@ public partial class MainViewModel
             ApplyPcieLinkPowerSavingForMode(mode);
             ApplyCpuMaxStateForMode(mode);
             ApplyPreferredGpuForMode(mode);
+            ApplyPhysxForMode(mode);
         });
         if (!IsModeCpuBoostTuningEnabled(mode)) return true;
         return await WriteCpuBoostAsync(mode);

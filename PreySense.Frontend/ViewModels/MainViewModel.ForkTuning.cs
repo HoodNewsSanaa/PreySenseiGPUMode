@@ -36,6 +36,11 @@ public partial class MainViewModel
 
     private static readonly object PreferredGpuGate = new();
 
+    /// <summary>Test seams for the PhysX processor: read (null = not found), set CPU, restore saved values.</summary>
+    internal Func<NvidiaPhysxValues?>? PhysxReader { get; set; }
+    internal Func<bool>? PhysxCpuWriter { get; set; }
+    internal Func<NvidiaPhysxValues, bool>? PhysxRestorer { get; set; }
+
     /// <summary>Test seam for the PROCHOT writer used when the edited mode is already active.</summary>
     internal Func<int, bool>? ProchotOffsetWriter { get; set; }
 
@@ -406,4 +411,76 @@ public partial class MainViewModel
         else
             AppLogger.Error($"[Preferred GPU] {GetModeTitle(mode)}: NVIDIA's settings could not be changed.");
     }
+
+    internal int? PhysxProcessorForModeIndex(int modeIndex) => SavedTuningMode(modeIndex).PhysxProcessor;
+
+    /// <summary>Saves a mode's PhysX processor (null = leave NVIDIA's setting) and applies it if that mode is active.</summary>
+    internal async Task SetPhysxProcessorForModeIndexAsync(int modeIndex, int? value)
+    {
+        if (!NvidiaPhysx.IsValid(value)) value = null;
+        byte mode = ModeIndexToByte(modeIndex);
+        TuningStore.Update(cfg => ProfileForMode(cfg.Tuning, mode).PhysxProcessor = value);
+        if (mode == ActivePowerMode)
+            await Task.Run(() => ApplyPhysxForMode(mode));
+    }
+
+    /// <summary>
+    /// Writes the mode's PhysX processor (registry only; the RTX is never woken). The first time, NVIDIA's own
+    /// values are saved, and they are written back for modes that leave the setting alone.
+    /// </summary>
+    internal void ApplyPhysxForMode(byte mode)
+    {
+        try
+        {
+            if (!ProfileManager.IsSupportedMode(mode)) return;
+            var tuning = (TuningConfigurationReader?.Invoke() ?? TuningStore.GetCurrent()).Tuning;
+            int? wanted = ProfileForMode(tuning, mode).PhysxProcessor;
+            if (NvidiaPhysx.IsValid(wanted))
+            {
+                NvidiaPhysxValues original = new(tuning.OriginalPhysxAuto, tuning.OriginalPhysxGpuId is long id ? (uint)id : null);
+                if (tuning.LastAppliedPhysxProcessor is null)
+                {
+                    NvidiaPhysxValues? read = PhysxReader != null ? PhysxReader() : ReadPhysx();
+                    if (read is null)
+                    {
+                        AppLogger.Error("[PhysX] NVIDIA's PhysX setting was not found.");
+                        return;
+                    }
+                    original = read.Value;
+                }
+                if ((PhysxCpuWriter ?? NvidiaPhysx.ApplyCpu)())
+                {
+                    TuningStore.Update(cfg =>
+                    {
+                        cfg.Tuning.LastAppliedPhysxProcessor = wanted;
+                        cfg.Tuning.OriginalPhysxAuto = original.Auto;
+                        cfg.Tuning.OriginalPhysxGpuId = original.GpuId;
+                    });
+                    AppLogger.Log($"[PhysX] {GetModeTitle(mode)}: PhysX on the CPU.");
+                }
+                else AppLogger.Error("[PhysX] Could not change NVIDIA's PhysX setting.");
+            }
+            else if (tuning.LastAppliedPhysxProcessor is not null)
+            {
+                var original = new NvidiaPhysxValues(tuning.OriginalPhysxAuto,
+                    tuning.OriginalPhysxGpuId is long id ? (uint)id : null);
+                if ((PhysxRestorer ?? NvidiaPhysx.Restore)(original))
+                {
+                    TuningStore.Update(cfg =>
+                    {
+                        cfg.Tuning.LastAppliedPhysxProcessor = null;
+                        cfg.Tuning.OriginalPhysxAuto = null;
+                        cfg.Tuning.OriginalPhysxGpuId = null;
+                    });
+                    AppLogger.Log($"[PhysX] {GetModeTitle(mode)}: NVIDIA's own PhysX setting restored.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("[PhysX] " + ex.Message);
+        }
+    }
+
+    private static NvidiaPhysxValues? ReadPhysx() => NvidiaPhysx.Read(out var values) ? values : (NvidiaPhysxValues?)null;
 }

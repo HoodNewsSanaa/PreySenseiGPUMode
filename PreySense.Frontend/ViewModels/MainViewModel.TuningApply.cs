@@ -283,6 +283,7 @@ public partial class MainViewModel
                 profile.CpuMaxStatePercent = null;
                 profile.CpuMaxStateEfficientPercent = null;
                 profile.PreferredGpu = null;
+                profile.PhysxProcessor = null;
             }
             cfg.Tuning.ProchotOffsetCelsius = null;
             cfg.Tuning.ApplyProchotOffset = false;

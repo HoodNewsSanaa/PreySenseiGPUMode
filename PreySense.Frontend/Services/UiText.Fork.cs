@@ -225,6 +225,16 @@ internal static partial class UiText
         Turkish["Max processor state (E-cores)"] = "Maksimum işlemci durumu (E çekirdekler)";
         Turkish["{0}% (Turbo off)"] = "%{0} (Turbo kapalı)";
         Turkish["{0}%"] = "%{0}";
+        Chinese["PhysX processor"] = "PhysX 处理器";
+        Chinese["CPU"] = "CPU";
+        Hindi["PhysX processor"] = "PhysX प्रोसेसर";
+        Hindi["CPU"] = "CPU";
+        Spanish["PhysX processor"] = "Procesador PhysX";
+        Spanish["CPU"] = "CPU";
+        French["PhysX processor"] = "Processeur PhysX";
+        French["CPU"] = "CPU";
+        Turkish["PhysX processor"] = "PhysX işlemcisi";
+        Turkish["CPU"] = "CPU";
         Chinese["iGPU Only on battery"] = "电池供电时仅 iGPU";
         Chinese["On battery, PreySense switches to iGPU Only."] = "使用电池时，PreySense 会切换到仅 iGPU。";
         Chinese["On battery, PreySense keeps the GPU mode you picked."] = "使用电池时，PreySense 会保留你选择的 GPU 模式。";

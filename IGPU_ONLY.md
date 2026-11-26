@@ -63,6 +63,10 @@ disabling it in Device Manager). No app can use it, so it stays fully powered do
   own choice. PreySense only talks to NVIDIA's driver when the value changes, and while iGPU Only has the RTX
   switched off it waits and sends it when the RTX comes back.
 
+- **PhysX processor**: NVIDIA's PhysX processor for that mode: "CPU", or "NVIDIA default" to leave NVIDIA's own
+  setting (normally Auto-select). It's a registry setting that PhysX games read when they start, so changing it
+  never wakes the RTX. NVIDIA's own values are saved the first time and written back afterwards.
+
 All of these save and apply as soon as you pick a value.
 
 **Move apps off the RTX** (Settings): lists the apps using the RTX and, after you confirm, restarts it so they

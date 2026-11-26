@@ -261,6 +261,17 @@ namespace PreySense.Core.Configuration
         [JsonPropertyOrder(15)]
         public long? OriginalPreferredGpuRenderingMode { get; set; }
 
+        /// <summary>iGPU Only fork: the PhysX processor PreySense last wrote (0 = CPU); null when none is in place.</summary>
+        [JsonPropertyOrder(15)]
+        public int? LastAppliedPhysxProcessor { get; set; }
+
+        /// <summary>iGPU Only fork: NVIDIA's PhysX values from before PreySense changed them (null = absent).</summary>
+        [JsonPropertyOrder(15)]
+        public int? OriginalPhysxAuto { get; set; }
+
+        [JsonPropertyOrder(15)]
+        public long? OriginalPhysxGpuId { get; set; }
+
         /// <summary>Driver-read factory profiles, saved only after all five modes were captured.</summary>
         [JsonPropertyOrder(14)]
         public Dictionary<string, ModeTuningConfig> FactoryDefaults { get; set; } = new();
@@ -337,6 +348,9 @@ namespace PreySense.Core.Configuration
             LastAppliedPreferredGpu = LastAppliedPreferredGpu,
             OriginalPreferredGpuMcCompat = OriginalPreferredGpuMcCompat,
             OriginalPreferredGpuRenderingMode = OriginalPreferredGpuRenderingMode,
+            LastAppliedPhysxProcessor = LastAppliedPhysxProcessor,
+            OriginalPhysxAuto = OriginalPhysxAuto,
+            OriginalPhysxGpuId = OriginalPhysxGpuId,
             FactoryDefaults = FactoryDefaults?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.Clone()!)!,
             Quiet = Quiet?.Clone()!,
             Eco = Eco?.Clone()!,
@@ -493,6 +507,12 @@ namespace PreySense.Core.Configuration
         /// </summary>
         [JsonPropertyOrder(20)]
         public int? PreferredGpu { get; set; }
+
+        /// <summary>
+        /// iGPU Only fork: NVIDIA's PhysX processor for this mode (0 = CPU). Null leaves NVIDIA's own setting alone.
+        /// </summary>
+        [JsonPropertyOrder(21)]
+        public int? PhysxProcessor { get; set; }
     }
 
     public sealed class FanConfig

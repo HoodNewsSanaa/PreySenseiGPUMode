@@ -78,6 +78,11 @@
                 "title": "Preferred GPU (NVIDIA)",
                 "description": "iGPU Only fork: NVIDIA Control Panel's global Preferred graphics processor in this mode (0 Integrated, 1 NVIDIA, 16 Auto-select). Null leaves NVIDIA's setting alone."
               },
+              "PhysxProcessor": {
+                "type": ["integer", "null"], "enum": [0, null],
+                "title": "PhysX processor",
+                "description": "iGPU Only fork: 0 runs NVIDIA PhysX on the CPU in this mode. Null leaves NVIDIA's setting alone."
+              },
               "GpuPowerWatts": { "type": ["integer", "null"], "minimum": 5, "maximum": 999 },
               "ApplyCpuBoost": { "type": "boolean", "default": false },
               "CpuBoostMode": { "type": ["integer", "null"], "minimum": 0, "maximum": 6 }

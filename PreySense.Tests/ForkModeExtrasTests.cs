@@ -349,6 +349,40 @@ public class ForkModeExtrasTests
     }
 
     [TestMethod]
+    public void Physx_SetsCpuAndRestoresNvidiaValues()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "PreySensePhysx-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var store = new ConfigurationService(Path.Combine(folder, "preysense.json"));
+            store.Update(config => config.Tuning.Eco.PhysxProcessor = PreySense.Gpu.NvidiaPhysx.Cpu);
+            var vm = (MainViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
+            vm.TuningConfigurationStore = store;
+            var original = new PreySense.Gpu.NvidiaPhysxValues(1, 0x200); // Auto-select on the RTX
+            int cpuWrites = 0;
+            var restores = new List<PreySense.Gpu.NvidiaPhysxValues>();
+            vm.PhysxReader = () => original;
+            vm.PhysxCpuWriter = () => { cpuWrites++; return true; };
+            vm.PhysxRestorer = values => { restores.Add(values); return true; };
+
+            vm.ApplyPhysxForMode(4); // Performance: nothing of ours
+            Assert.AreEqual(0, cpuWrites);
+            vm.ApplyPhysxForMode(6); // Eco: CPU
+            vm.PhysxReader = () => new PreySense.Gpu.NvidiaPhysxValues(0, 0); // PreySense's own value; not saved
+            vm.ApplyPhysxForMode(6);
+            Assert.AreEqual(2, cpuWrites);
+            Assert.AreEqual(1, store.GetCurrent().Tuning.OriginalPhysxAuto);
+            Assert.AreEqual(0x200L, store.GetCurrent().Tuning.OriginalPhysxGpuId);
+
+            vm.ApplyPhysxForMode(4); // back to NVIDIA's values
+            Assert.AreEqual(original, restores.Single());
+            Assert.IsNull(store.GetCurrent().Tuning.LastAppliedPhysxProcessor);
+        }
+        finally { Directory.Delete(folder, true); }
+    }
+
+    [TestMethod]
     public void Updater_ParsesForkTagsAndComparesBuilds()
     {
         Assert.AreEqual((new Version(3, 1, 3), 7), PreySense.Frontend.Services.ForkUpdateService.ParseTag("igpu-3.1.3-7"));
