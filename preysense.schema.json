@@ -63,6 +63,16 @@
                 "title": "PCIe link power saving",
                 "description": "iGPU Only fork: Windows PCIe Link State Power Management in this mode (0 Off, 1 Moderate, 2 Maximum). Null leaves Windows' setting alone."
               },
+              "CpuMaxStatePercent": {
+                "type": ["integer", "null"], "minimum": 5, "maximum": 100,
+                "title": "Max processor state, P-cores (%)",
+                "description": "iGPU Only fork: Windows Maximum processor state for the P-cores in this mode. 99 turns Turbo Boost off. Null leaves Windows' setting alone."
+              },
+              "CpuMaxStateEfficientPercent": {
+                "type": ["integer", "null"], "minimum": 5, "maximum": 100,
+                "title": "Max processor state, E-cores (%)",
+                "description": "iGPU Only fork: Windows Maximum processor state for the E-cores in this mode. Null leaves Windows' setting alone."
+              },
               "GpuPowerWatts": { "type": ["integer", "null"], "minimum": 5, "maximum": 999 },
               "ApplyCpuBoost": { "type": "boolean", "default": false },
               "CpuBoostMode": { "type": ["integer", "null"], "minimum": 0, "maximum": 6 }

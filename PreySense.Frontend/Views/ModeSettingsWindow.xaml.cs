@@ -41,12 +41,16 @@ namespace PreySense.Frontend.Views
             DropdownModeCpuCap.SelectionChanged += ModeCpuCapDropdown_Changed;
             DropdownModeGpuClock.SelectionChanged += ModeGpuClockDropdown_Changed;
             DropdownModePcie.SelectionChanged += ModePcieDropdown_Changed;
+            DropdownModeCpuStateP.SelectionChanged += ModeCpuStateDropdown_Changed;
+            DropdownModeCpuStateE.SelectionChanged += ModeCpuStateDropdown_Changed;
             Closed += (_, _) =>
             {
                 DropdownModeProchot.SelectionChanged -= ModeProchotDropdown_Changed;
                 DropdownModeCpuCap.SelectionChanged -= ModeCpuCapDropdown_Changed;
                 DropdownModeGpuClock.SelectionChanged -= ModeGpuClockDropdown_Changed;
                 DropdownModePcie.SelectionChanged -= ModePcieDropdown_Changed;
+                DropdownModeCpuStateP.SelectionChanged -= ModeCpuStateDropdown_Changed;
+                DropdownModeCpuStateE.SelectionChanged -= ModeCpuStateDropdown_Changed;
                 _verificationTimer.Stop();
                 if (DataContext is MainViewModel vm)
                     vm.PropertyChanged -= OnTuningVmPropertyChanged;
@@ -690,6 +694,44 @@ namespace PreySense.Frontend.Views
             }
             int? pcie = vm.PcieLinkPowerSavingForModeIndex(_selectedModeIndex);
             DropdownModePcie.SelectedIndex = pcie is >= 0 and <= 2 ? pcie.Value + 1 : 0;
+
+            FillCpuStateDropdown(DropdownModeCpuStateP, vm.CpuMaxStateForModeIndex(_selectedModeIndex, efficientCores: false));
+            FillCpuStateDropdown(DropdownModeCpuStateE, vm.CpuMaxStateForModeIndex(_selectedModeIndex, efficientCores: true));
+        }
+
+        /// <summary>Choices for the maximum processor state, in percent; 0 = leave Windows' setting.</summary>
+        internal static readonly int[] ModeCpuStateChoicesPercent = { 0, 100, 99, 90, 80, 70, 60, 50, 40, 30 };
+
+        /// <summary>Fills a processor-state dropdown; a value set by editing the config file gets its own entry at the end.</summary>
+        private static void FillCpuStateDropdown(SettingDropdownRow dropdown, int? percent)
+        {
+            dropdown.Items.Clear();
+            foreach (int choice in ModeCpuStateChoicesPercent)
+                dropdown.Items.Add(CpuStateLabel(choice));
+            int index = Array.IndexOf(ModeCpuStateChoicesPercent, percent ?? 0);
+            dropdown.Tag = null;
+            if (index < 0 && percent is int custom)
+            {
+                dropdown.Items.Add(CpuStateLabel(custom));
+                index = dropdown.Items.Count - 1;
+                dropdown.Tag = custom;
+            }
+            dropdown.SelectedIndex = Math.Max(0, index);
+        }
+
+        private static string CpuStateLabel(int percent) => percent switch
+        {
+            0 => Services.LocalizationService.Translate("Windows default"),
+            99 => Services.LocalizationService.Format("{0}% (Turbo off)", percent),
+            _ => Services.LocalizationService.Format("{0}%", percent)
+        };
+
+        private async void ModeCpuStateDropdown_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (_isUpdatingUi || DataContext is not MainViewModel vm || sender is not SettingDropdownRow dropdown || dropdown.SelectedIndex < 0) return;
+            int index = dropdown.SelectedIndex;
+            int? percent = index < ModeCpuStateChoicesPercent.Length ? ModeCpuStateChoicesPercent[index] : dropdown.Tag as int?;
+            await vm.SetCpuMaxStateForModeIndexAsync(_selectedModeIndex, ReferenceEquals(dropdown, DropdownModeCpuStateE), percent is > 0 ? percent : null);
         }
 
         private async void ModePcieDropdown_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)

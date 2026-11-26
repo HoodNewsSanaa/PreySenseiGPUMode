@@ -24,6 +24,11 @@ public partial class MainViewModel
     internal Func<int?, int?, bool>? PcieLinkPowerRestorer { get; set; }
     internal Func<bool, int?>? PcieLinkPowerReader { get; set; }
 
+    /// <summary>Test seams for the maximum processor state: write a percentage, restore AC/DC, read AC (false) or DC (true).</summary>
+    internal Func<PowerPlanSetting, int, bool>? CpuMaxStateWriter { get; set; }
+    internal Func<PowerPlanSetting, int?, int?, bool>? CpuMaxStateRestorer { get; set; }
+    internal Func<PowerPlanSetting, bool, int?>? CpuMaxStateReader { get; set; }
+
     /// <summary>Test seam for the PROCHOT writer used when the edited mode is already active.</summary>
     internal Func<int, bool>? ProchotOffsetWriter { get; set; }
 
@@ -217,6 +222,80 @@ public partial class MainViewModel
         catch (Exception ex)
         {
             AppLogger.Error("[PCIe] " + ex.Message);
+        }
+    }
+
+    internal int? CpuMaxStateForModeIndex(int modeIndex, bool efficientCores) =>
+        efficientCores ? SavedTuningMode(modeIndex).CpuMaxStateEfficientPercent : SavedTuningMode(modeIndex).CpuMaxStatePercent;
+
+    /// <summary>Saves a mode's P-core or E-core maximum processor state (null = leave Windows' setting) and applies it if that mode is active.</summary>
+    internal async Task SetCpuMaxStateForModeIndexAsync(int modeIndex, bool efficientCores, int? percent)
+    {
+        if (!CpuMaxProcessorState.IsValid(percent)) percent = null;
+        byte mode = ModeIndexToByte(modeIndex);
+        TuningStore.Update(cfg =>
+        {
+            var profile = ProfileForMode(cfg.Tuning, mode);
+            if (efficientCores) profile.CpuMaxStateEfficientPercent = percent;
+            else profile.CpuMaxStatePercent = percent;
+        });
+        if (mode == ActivePowerMode)
+            await Task.Run(() => ApplyCpuMaxStateForMode(mode));
+    }
+
+    /// <summary>
+    /// Writes the mode's maximum processor state for the P-cores and E-cores. The first time each is changed,
+    /// Windows' own values are saved, and they are written back when PreySense switches to a mode that leaves
+    /// that setting alone.
+    /// </summary>
+    internal void ApplyCpuMaxStateForMode(byte mode)
+    {
+        try
+        {
+            if (!ProfileManager.IsSupportedMode(mode)) return;
+            var tuning = (TuningConfigurationReader?.Invoke() ?? TuningStore.GetCurrent()).Tuning;
+            var profile = ProfileForMode(tuning, mode);
+            ApplyHeldCpuMaxState(mode, CpuMaxProcessorState.PerformanceCores, "P-cores", profile.CpuMaxStatePercent,
+                tuning.LastAppliedCpuMaxStatePercent, tuning.OriginalCpuMaxStatePercentAc, tuning.OriginalCpuMaxStatePercentDc,
+                (t, last, ac, dc) => { t.LastAppliedCpuMaxStatePercent = last; t.OriginalCpuMaxStatePercentAc = ac; t.OriginalCpuMaxStatePercentDc = dc; });
+            ApplyHeldCpuMaxState(mode, CpuMaxProcessorState.EfficientCores, "E-cores", profile.CpuMaxStateEfficientPercent,
+                tuning.LastAppliedCpuMaxStateEfficientPercent, tuning.OriginalCpuMaxStateEfficientPercentAc, tuning.OriginalCpuMaxStateEfficientPercentDc,
+                (t, last, ac, dc) => { t.LastAppliedCpuMaxStateEfficientPercent = last; t.OriginalCpuMaxStateEfficientPercentAc = ac; t.OriginalCpuMaxStateEfficientPercentDc = dc; });
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("[CPU state] " + ex.Message);
+        }
+    }
+
+    private void ApplyHeldCpuMaxState(byte mode, PowerPlanSetting setting, string label, int? wanted,
+        int? lastApplied, int? originalAc, int? originalDc, Action<TuningConfig, int?, int?, int?> save)
+    {
+        if (CpuMaxProcessorState.IsValid(wanted))
+        {
+            if (lastApplied is null)
+            {
+                var read = CpuMaxStateReader ?? CpuMaxProcessorState.Read;
+                originalAc = read(setting, false);
+                originalDc = read(setting, true);
+            }
+            if ((CpuMaxStateWriter ?? CpuMaxProcessorState.Apply)(setting, wanted!.Value))
+            {
+                TuningStore.Update(cfg => save(cfg.Tuning, wanted, originalAc, originalDc));
+                AppLogger.Log($"[CPU state] {GetModeTitle(mode)}: {label} max processor state {wanted}%.");
+            }
+            else
+            {
+                AppLogger.Error($"[CPU state] Windows refused the {label} max processor state.");
+            }
+        }
+        else if (lastApplied is not null)
+        {
+            if ((CpuMaxStateRestorer ?? CpuMaxProcessorState.Restore)(setting, originalAc, originalDc))
+            {
+                TuningStore.Update(cfg => save(cfg.Tuning, null, null, null));
+                AppLogger.Log($"[CPU state] {GetModeTitle(mode)}: Windows' {label} max processor state restored.");
+            }
         }
     }
 }

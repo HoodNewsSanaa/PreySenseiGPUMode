@@ -225,6 +225,28 @@ namespace PreySense.Core.Configuration
         [JsonPropertyOrder(15)]
         public int? OriginalPcieLinkPowerSavingDc { get; set; }
 
+        /// <summary>iGPU Only fork: the P-core maximum processor state (%) PreySense last wrote; null when none is in place.</summary>
+        [JsonPropertyOrder(15)]
+        public int? LastAppliedCpuMaxStatePercent { get; set; }
+
+        /// <summary>iGPU Only fork: Windows' P-core maximum processor state (AC/DC) from before PreySense changed it.</summary>
+        [JsonPropertyOrder(15)]
+        public int? OriginalCpuMaxStatePercentAc { get; set; }
+
+        [JsonPropertyOrder(15)]
+        public int? OriginalCpuMaxStatePercentDc { get; set; }
+
+        /// <summary>iGPU Only fork: the E-core maximum processor state (%) PreySense last wrote; null when none is in place.</summary>
+        [JsonPropertyOrder(15)]
+        public int? LastAppliedCpuMaxStateEfficientPercent { get; set; }
+
+        /// <summary>iGPU Only fork: Windows' E-core maximum processor state (AC/DC) from before PreySense changed it.</summary>
+        [JsonPropertyOrder(15)]
+        public int? OriginalCpuMaxStateEfficientPercentAc { get; set; }
+
+        [JsonPropertyOrder(15)]
+        public int? OriginalCpuMaxStateEfficientPercentDc { get; set; }
+
         /// <summary>Driver-read factory profiles, saved only after all five modes were captured.</summary>
         [JsonPropertyOrder(14)]
         public Dictionary<string, ModeTuningConfig> FactoryDefaults { get; set; } = new();
@@ -292,6 +314,12 @@ namespace PreySense.Core.Configuration
             LastAppliedPcieLinkPowerSaving = LastAppliedPcieLinkPowerSaving,
             OriginalPcieLinkPowerSavingAc = OriginalPcieLinkPowerSavingAc,
             OriginalPcieLinkPowerSavingDc = OriginalPcieLinkPowerSavingDc,
+            LastAppliedCpuMaxStatePercent = LastAppliedCpuMaxStatePercent,
+            OriginalCpuMaxStatePercentAc = OriginalCpuMaxStatePercentAc,
+            OriginalCpuMaxStatePercentDc = OriginalCpuMaxStatePercentDc,
+            LastAppliedCpuMaxStateEfficientPercent = LastAppliedCpuMaxStateEfficientPercent,
+            OriginalCpuMaxStateEfficientPercentAc = OriginalCpuMaxStateEfficientPercentAc,
+            OriginalCpuMaxStateEfficientPercentDc = OriginalCpuMaxStateEfficientPercentDc,
             FactoryDefaults = FactoryDefaults?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.Clone()!)!,
             Quiet = Quiet?.Clone()!,
             Eco = Eco?.Clone()!,
@@ -427,6 +455,20 @@ namespace PreySense.Core.Configuration
         /// </summary>
         [JsonPropertyOrder(17)]
         public int? PcieLinkPowerSaving { get; set; }
+
+        /// <summary>
+        /// iGPU Only fork: Windows "Maximum processor state" for the P-cores in this mode, in percent (99 turns
+        /// Turbo Boost off). Null leaves Windows' own setting alone.
+        /// </summary>
+        [JsonPropertyOrder(18)]
+        public int? CpuMaxStatePercent { get; set; }
+
+        /// <summary>
+        /// iGPU Only fork: Windows "Maximum processor state" for the E-cores in this mode, in percent.
+        /// Null leaves Windows' own setting alone.
+        /// </summary>
+        [JsonPropertyOrder(19)]
+        public int? CpuMaxStateEfficientPercent { get; set; }
     }
 
     public sealed class FanConfig

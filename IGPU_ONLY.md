@@ -49,6 +49,12 @@ disabling it in Device Manager). No app can use it, so it stays fully powered do
   its deeper idle states. "Windows default" leaves Windows' own setting alone; the first time PreySense changes it,
   it saves Windows' values and writes them back when you switch to a mode set to "Windows default".
 
+- **Max processor state (P-cores / E-cores)**: Windows' "Maximum processor state" for that mode, set separately
+  for the performance and efficiency cores. 99% is the well-known way to turn Turbo Boost off; lower values cap
+  further, but how a percentage maps to a clock speed is up to Windows and the CPU. For an exact clock limit, use
+  Max CPU frequency instead. "Windows default" works the same way as for PCIe power saving: Windows' values are
+  saved the first time and written back afterwards.
+
 All of these save and apply as soon as you pick a value.
 
 **Power Diagnostics** (Settings → Power Diagnostics): battery drain, CPU package power, the rest of the system

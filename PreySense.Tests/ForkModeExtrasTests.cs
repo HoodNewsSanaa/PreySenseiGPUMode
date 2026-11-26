@@ -262,6 +262,52 @@ public class ForkModeExtrasTests
     }
 
     [TestMethod]
+    public void CpuMaxState_KeepsPAndECoresSeparateAndRestoresWindowsValues()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "PreySenseCpuState-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var store = new ConfigurationService(Path.Combine(folder, "preysense.json"));
+            store.Update(config =>
+            {
+                config.Tuning.Eco.CpuMaxStatePercent = 99;
+                config.Tuning.Eco.CpuMaxStateEfficientPercent = 70;
+                config.Tuning.Balanced.CpuMaxStatePercent = 90; // E-cores left to Windows
+            });
+            var vm = (MainViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
+            vm.TuningConfigurationStore = store;
+            var p = PreySense.Mode.CpuMaxProcessorState.PerformanceCores;
+            var e = PreySense.Mode.CpuMaxProcessorState.EfficientCores;
+            var writes = new List<(string Name, int Percent)>();
+            var restores = new List<(string Name, int? Ac, int? Dc)>();
+            vm.CpuMaxStateReader = (setting, dc) => setting == p ? (dc ? 80 : 100) : 100;
+            vm.CpuMaxStateWriter = (setting, percent) => { writes.Add((setting.Name, percent)); return true; };
+            vm.CpuMaxStateRestorer = (setting, ac, dc) => { restores.Add((setting.Name, ac, dc)); return true; };
+
+            vm.ApplyCpuMaxStateForMode(4); // Performance: nothing set, nothing of ours
+            Assert.IsEmpty(writes);
+            Assert.IsEmpty(restores);
+
+            vm.ApplyCpuMaxStateForMode(6); // Eco: P 99, E 70
+            vm.CpuMaxStateReader = (_, _) => 55; // now reads PreySense's own values; must not be saved
+            vm.ApplyCpuMaxStateForMode(1); // Balanced: P 90, E back to Windows
+            CollectionAssert.AreEqual(new[] { (p.Name, 99), (e.Name, 70), (p.Name, 90) }, writes);
+            Assert.AreEqual((e.Name, (int?)100, (int?)100), restores.Single());
+            var tuning = store.GetCurrent().Tuning;
+            Assert.AreEqual(100, tuning.OriginalCpuMaxStatePercentAc);
+            Assert.AreEqual(80, tuning.OriginalCpuMaxStatePercentDc);
+            Assert.AreEqual(90, tuning.LastAppliedCpuMaxStatePercent);
+            Assert.IsNull(tuning.LastAppliedCpuMaxStateEfficientPercent);
+
+            vm.ApplyCpuMaxStateForMode(5); // Turbo: P back to Windows' values
+            Assert.AreEqual((p.Name, (int?)100, (int?)80), restores.Last());
+            Assert.IsNull(store.GetCurrent().Tuning.LastAppliedCpuMaxStatePercent);
+        }
+        finally { Directory.Delete(folder, true); }
+    }
+
+    [TestMethod]
     public void Updater_ParsesForkTagsAndComparesBuilds()
     {
         Assert.AreEqual((new Version(3, 1, 3), 7), PreySense.Frontend.Services.ForkUpdateService.ParseTag("igpu-3.1.3-7"));
