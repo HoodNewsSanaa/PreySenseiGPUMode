@@ -193,4 +193,32 @@ public class ForkModeExtrasTests
         }
         finally { Directory.Delete(folder, true); }
     }
+
+    [TestMethod]
+    public void BackgroundSleep_FollowsWindowAndSetting()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "PreySenseSleep-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var store = new ConfigurationService(Path.Combine(folder, "preysense.json"));
+            var vm = (MainViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
+            vm.TuningConfigurationStore = store;
+            var calls = new List<bool>();
+            vm.EfficiencyModeSetter = on => calls.Add(on);
+
+            Assert.IsTrue(vm.IsSleepInBackgroundEnabled); // on by default
+            vm.SetBackgroundSleep(true);
+            vm.SetBackgroundSleep(true); // no repeat
+            Assert.IsTrue(vm.IsBackgroundAsleep);
+            vm.SetBackgroundSleep(false);
+            CollectionAssert.AreEqual(new[] { true, false }, calls);
+
+            store.Update(config => config.General.SleepInBackground = false);
+            vm.SetBackgroundSleep(true); // setting off: stays awake
+            Assert.IsFalse(vm.IsBackgroundAsleep);
+            CollectionAssert.AreEqual(new[] { true, false }, calls);
+        }
+        finally { Directory.Delete(folder, true); }
+    }
 }

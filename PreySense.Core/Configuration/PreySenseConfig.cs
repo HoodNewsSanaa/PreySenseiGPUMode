@@ -99,6 +99,12 @@ namespace PreySense.Core.Configuration
         /// <summary>Whether hardware tuning controls are enabled.</summary>
         public bool HardwareTuningEnabled { get; set; } = false;
 
+        /// <summary>
+        /// iGPU Only fork: while PreySense's window is hidden or minimized, run its own work in Windows'
+        /// efficiency mode and check the RTX less often, so PreySense doesn't keep the laptop out of low-power states.
+        /// </summary>
+        public bool SleepInBackground { get; set; } = true;
+
         public GeneralConfig Clone() => (GeneralConfig)MemberwiseClone();
     }
 

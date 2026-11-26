@@ -21,6 +21,18 @@ namespace PreySense.Frontend
         private System.Windows.Interop.HwndSource? _hwndSource;
         private bool _sessionResourcesDisposed;
 
+        /// <summary>
+        /// iGPU Only fork: sensor polling runs only while the window is on screen, and with Sleep in Background
+        /// a minimized window counts as away too; the view model then puts PreySense into efficiency mode.
+        /// </summary>
+        private void UpdateBackgroundState()
+        {
+            if (DataContext is not MainViewModel viewModel) return;
+            bool onScreen = IsVisible && WindowState != WindowState.Minimized;
+            viewModel.SetMainWindowTelemetryVisible(viewModel.IsSleepInBackgroundEnabled ? onScreen : IsVisible);
+            viewModel.SetBackgroundSleep(!onScreen);
+        }
+
         public MainWindow()
         {
             InitializeComponent();
@@ -29,9 +41,10 @@ namespace PreySense.Frontend
                 _lastActiveWindow = this;
                 _visibilitySession.RecordForeground(true);
             };
+            StateChanged += (_, _) => UpdateBackgroundState();
             IsVisibleChanged += (_, _) =>
             {
-                if (DataContext is MainViewModel viewModel) viewModel.SetMainWindowTelemetryVisible(IsVisible);
+                UpdateBackgroundState();
                 _windowActivityEvents?.Dispose();
                 _windowActivityEvents = IsVisible
                     ? new ForegroundWindowEvents(window =>
@@ -63,6 +76,7 @@ namespace PreySense.Frontend
 
             var vm = new MainViewModel(hw);
             DataContext = vm;
+            UpdateBackgroundState(); // PreySense usually starts hidden in the tray
             ApplyResponsivePercentageSize();
 
             // Setup Predator Sense Key & Combos

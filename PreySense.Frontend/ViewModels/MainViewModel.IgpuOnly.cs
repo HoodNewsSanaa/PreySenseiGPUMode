@@ -96,7 +96,7 @@ namespace PreySense.Frontend.ViewModels
         {
             if (_disposed || _dispatcher == null || Interlocked.Exchange(ref _igpuOnlyTimerCreated, 1) != 0) return;
             _igpuOnlyTimer = new System.Windows.Threading.DispatcherTimer(
-                TimeSpan.FromSeconds(IgpuOnlyRecheckSeconds),
+                IgpuOnlyRecheckInterval,
                 System.Windows.Threading.DispatcherPriority.Background,
                 (_, _) =>
                 {

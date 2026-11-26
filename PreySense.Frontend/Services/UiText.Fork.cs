@@ -165,5 +165,25 @@ internal static partial class UiText
         Turkish["No limit"] = "Sınır yok";
         Turkish["{0} MHz"] = "{0} MHz";
         Turkish["Saved and applied right away. The CPU frequency cap is experimental: Windows or Intel software can still lower clocks further. A sleeping RTX gets its clock limit when it next wakes up."] = "Hemen kaydedilir ve uygulanır. CPU frekans sınırı deneyseldir: Windows veya Intel yazılımı saat hızlarını yine de daha fazla düşürebilir. Uykudaki RTX, saat sınırını bir sonraki uyanışında alır.";
+        Chinese["Sleep in Background"] = "后台休眠";
+        Chinese["PreySense will sleep while its window is hidden or minimized."] = "PreySense 将在窗口隐藏或最小化时进入休眠。";
+        Chinese["PreySense will keep running normally in the background."] = "PreySense 将在后台正常运行。";
+        Chinese["Could not save Sleep in Background: {0}"] = "无法保存后台休眠设置：{0}";
+        Hindi["Sleep in Background"] = "बैकग्राउंड में स्लीप";
+        Hindi["PreySense will sleep while its window is hidden or minimized."] = "विंडो छिपी या मिनिमाइज़ होने पर PreySense स्लीप में रहेगा।";
+        Hindi["PreySense will keep running normally in the background."] = "PreySense बैकग्राउंड में सामान्य रूप से चलता रहेगा।";
+        Hindi["Could not save Sleep in Background: {0}"] = "बैकग्राउंड में स्लीप सहेजा नहीं जा सका: {0}";
+        Spanish["Sleep in Background"] = "Suspender en segundo plano";
+        Spanish["PreySense will sleep while its window is hidden or minimized."] = "PreySense se suspenderá mientras su ventana esté oculta o minimizada.";
+        Spanish["PreySense will keep running normally in the background."] = "PreySense seguirá funcionando normalmente en segundo plano.";
+        Spanish["Could not save Sleep in Background: {0}"] = "No se pudo guardar Suspender en segundo plano: {0}";
+        French["Sleep in Background"] = "Veille en arrière-plan";
+        French["PreySense will sleep while its window is hidden or minimized."] = "PreySense se mettra en veille lorsque sa fenêtre est masquée ou réduite.";
+        French["PreySense will keep running normally in the background."] = "PreySense continuera de fonctionner normalement en arrière-plan.";
+        French["Could not save Sleep in Background: {0}"] = "Impossible d’enregistrer Veille en arrière-plan : {0}";
+        Turkish["Sleep in Background"] = "Arka planda uyku";
+        Turkish["PreySense will sleep while its window is hidden or minimized."] = "PreySense, penceresi gizliyken veya simge durumundayken uyur.";
+        Turkish["PreySense will keep running normally in the background."] = "PreySense arka planda normal şekilde çalışmaya devam eder.";
+        Turkish["Could not save Sleep in Background: {0}"] = "Arka planda uyku kaydedilemedi: {0}";
     }
 }

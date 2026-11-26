@@ -51,6 +51,10 @@ All three save and apply as soon as you pick a value.
 It reads once a second only while the window is open. The C-state counters are read only on Intel CPUs known to
 have them (12th gen through Core Ultra 200).
 
+**Sleep in Background** (Settings, on by default): while PreySense's window is hidden or minimized, it runs in
+Windows' efficiency mode, stops sensor polling (also when minimized), releases NVIDIA's monitoring library and checks
+the iGPU Only state every 2 minutes instead of every 20 seconds. Everything resumes when the window is shown.
+
 The battery profile (a separate power mode on battery and on AC) and the automatic 60 Hz on battery already come
 from PreySense: see Settings.
 

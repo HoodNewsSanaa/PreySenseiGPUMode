@@ -43,6 +43,21 @@
               "GpuDeltaWatts": { "type": ["integer", "null"], "minimum": 0, "maximum": 255, "multipleOf": 5 },
               "GpuDynamicBoostWatts": { "type": ["integer", "null"], "minimum": 0, "maximum": 25, "multipleOf": 5 },
               "PlatformPowerOffsetWatts": { "type": ["integer", "null"], "minimum": 0, "maximum": 255, "multipleOf": 5 },
+              "ProchotOffsetOverrideCelsius": {
+                "type": ["integer", "null"], "minimum": 0, "maximum": 63,
+                "title": "PROCHOT offset for this mode (°C)",
+                "description": "iGPU Only fork: used instead of the global PROCHOT offset in this mode. Null uses the global setting."
+              },
+              "CpuMaxFrequencyMhz": {
+                "type": ["integer", "null"], "minimum": 800, "maximum": 6500,
+                "title": "Max CPU frequency (MHz)",
+                "description": "iGPU Only fork (experimental): Windows maximum processor frequency for every core type in this mode. Null means no cap."
+              },
+              "GpuMaxClockMhz": {
+                "type": ["integer", "null"], "minimum": 600, "maximum": 3500,
+                "title": "Max RTX clock (MHz)",
+                "description": "iGPU Only fork: caps the RTX core clock in this mode, like nvidia-smi -lgc. Null means no limit."
+              },
               "GpuPowerWatts": { "type": ["integer", "null"], "minimum": 5, "maximum": 999 },
               "ApplyCpuBoost": { "type": "boolean", "default": false },
               "CpuBoostMode": { "type": ["integer", "null"], "minimum": 0, "maximum": 6 }
@@ -79,6 +94,11 @@
           "type": "boolean",
           "description": "Enables optional driver-based tuning controls; this is not a measured hardware state.",
           "title": "Hardware Tuning Enabled"
+        },
+        "SleepInBackground": {
+          "type": "boolean",
+          "description": "iGPU Only fork: while the window is hidden or minimized, run PreySense in Windows efficiency mode and check the RTX less often.",
+          "title": "Sleep in Background"
         }
       },
       "title": "General"

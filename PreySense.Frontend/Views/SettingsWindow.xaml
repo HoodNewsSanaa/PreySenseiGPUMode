@@ -62,6 +62,11 @@
                                                       OffText="Disabled"
                                                       SwitchWidth="120"/>
 
+                            <controls:SettingSwitchRow Title="Sleep in Background"
+                                                      IsChecked="{Binding IsSleepInBackgroundEnabled, Mode=OneWay}"
+                                                      Command="{Binding ToggleSleepInBackgroundCommand}"
+                                                      SwitchWidth="92"/>
+
                             <controls:SettingSwitchRow Title="Battery Limit"
                                                       IsChecked="{Binding IsBatteryLimitEnabled, Mode=OneWay}"
                                                       OnText="80%"
