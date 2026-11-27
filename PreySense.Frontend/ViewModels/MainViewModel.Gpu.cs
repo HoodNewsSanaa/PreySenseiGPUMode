@@ -245,13 +245,15 @@ namespace PreySense.Frontend.ViewModels
                 // iGPU Only fork: the RTX guard may have stopped the NVIDIA service display switching needs.
                 if (_hw is ProductionHardwareService)
                     resumedDisplayService = await Task.Run(ResumeNvidiaDisplayServiceForSwitch);
-                var current = await Task.Run(() => _hw.IsDdsAvailable ? _hw.GetDdsStatus() : null);
-                // iGPU Only fork: when the RTX is asleep, NVIDIA's display API fails until the RTX has woken up
-                // (about a second). Retry before giving up, so a tile click on a sleeping RTX still works.
-                for (int attempt = 0; current?.IsSupported != true && attempt < 8; attempt++)
+                // iGPU Only fork: NVIDIA's display-switch API fails while the RTX is asleep, so wake it first
+                // (and again before each retry: it can fall back asleep within seconds).
+                DdsStatus? current = null;
+                for (int attempt = 0; attempt < 10; attempt++)
                 {
-                    await Task.Delay(500);
+                    await Task.Run(_hw.WakeDiscreteGpu);
                     current = await Task.Run(() => _hw.IsDdsAvailable ? _hw.GetDdsStatus() : null);
+                    if (current?.IsSupported == true) break;
+                    await Task.Delay(500);
                 }
                 if (current?.IsSupported != true)
                 {

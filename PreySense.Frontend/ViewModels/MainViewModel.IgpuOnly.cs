@@ -324,9 +324,12 @@ namespace PreySense.Frontend.ViewModels
                 return false;
             }
             _igpuOnlyRtxOff = false;
-            // Wait (up to 10 s) for NVIDIA's display-switch API to come back before anything uses it.
+            // Wait (up to ~20 s) for NVIDIA's display-switch API to come back before anything uses it. The fresh
+            // driver can put the idle RTX straight back to sleep, and the API fails while it sleeps, so wake it
+            // before each try.
             for (int i = 0; i < 40; i++)
             {
+                await Task.Run(_hw.WakeDiscreteGpu);
                 var status = await Task.Run(() => _hw.IsDdsAvailable ? _hw.GetDdsStatus() : null);
                 if (status?.IsSupported == true) { ApplyDdsStatus(status); break; }
                 await Task.Delay(250);

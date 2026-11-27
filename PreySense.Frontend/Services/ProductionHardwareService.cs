@@ -228,6 +228,27 @@ namespace PreySense.Frontend.Services
             return on;
         }
 
+        public bool WakeDiscreteGpu()
+        {
+            try
+            {
+                DeviceHelper.InvalidateDisplayDevicePowerStateCache();
+                int? state = DeviceHelper.GetDisplayDevicePowerState("VEN_10DE");
+                if (state == 1) return true;
+                if (state is null) return DeviceHelper.IsDisplayDeviceDisabled("VEN_10DE") == false;
+                // Any NVML query powers the RTX up; then wait (up to 3 s) for Windows to see it awake.
+                try { NvmlHelper.GetGpuPower(); } catch { }
+                for (int i = 0; i < 30; i++)
+                {
+                    DeviceHelper.InvalidateDisplayDevicePowerStateCache();
+                    if (DeviceHelper.GetDisplayDevicePowerState("VEN_10DE") == 1) return true;
+                    System.Threading.Thread.Sleep(100);
+                }
+                return false;
+            }
+            catch { return false; }
+        }
+
         public System.Collections.Generic.IReadOnlyList<string>? GetDiscreteGpuAppNames()
         {
             try

@@ -76,6 +76,12 @@ namespace PreySense.Core.Services
         /// device data, without calling the NVIDIA driver. Null when unknown, missing or disabled.
         /// </summary>
         int? GetDiscreteGpuPowerState() => null;
+
+        /// <summary>
+        /// iGPU Only fork: wakes an asleep RTX and waits until it is awake (D0). NVIDIA's display-switch API fails
+        /// while the RTX sleeps, so GPU mode switches call this first. Returns true when it is awake.
+        /// </summary>
+        bool WakeDiscreteGpu() => true;
         bool? IsScreenOnDiscreteGpu() => null;
 
         // RGB Keyboard Lighting
