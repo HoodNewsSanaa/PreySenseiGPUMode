@@ -15,6 +15,13 @@ public static class HardwareOperationGate
         return new Lease();
     }
 
+    /// <summary>
+    /// iGPU Only fork: for background work that talks to NVIDIA's driver or services (Mode Extras, RTX guard).
+    /// It must never overlap a display switch or an RTX restart, which freezes the system.
+    /// </summary>
+    public static IDisposable? TryEnterNvidiaWork(TimeSpan timeout) =>
+        Gate.Wait(timeout) ? new Lease() : null;
+
     public static async Task<IDisposable> EnterDisplaySwitchAsync()
     {
         if (!await Gate.WaitAsync(TimeSpan.FromSeconds(5)))

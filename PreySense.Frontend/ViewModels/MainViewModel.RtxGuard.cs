@@ -70,16 +70,14 @@ public partial class MainViewModel
         }
     }
 
+    /// <summary>The guard is on but hasn't stopped NVIDIA's services yet (the screen was on the RTX).</summary>
+    private volatile bool _rtxGuardServicesPending;
+
     private void StartRtxGuardLocked(byte mode)
     {
         _rtxGuardActive = true;
-        var stopped = (RtxGuardServiceStopper ?? RtxGuard.StopServices)(RtxGuard.PollingServices);
-        TuningStore.Update(cfg =>
-        {
-            var list = cfg.Tuning.RtxGuardStoppedServices ??= new();
-            foreach (string name in stopped)
-                if (!list.Contains(name, StringComparer.OrdinalIgnoreCase)) list.Add(name);
-        });
+        _rtxGuardServicesPending = true;
+        TryStopGuardServices();
         if (RtxGuardServiceStopper is null)
         {
             _rtxGuardTimer ??= new Timer(_ => RtxGuardTick(), null, Timeout.Infinite, Timeout.Infinite);
@@ -88,9 +86,34 @@ public partial class MainViewModel
         AppLogger.Log($"[RTX guard] {GetModeTitle(mode)}: guard on.");
     }
 
+    /// <summary>
+    /// Stops NVIDIA's polling services, but only while the laptop screen is on Intel: the Display Container must
+    /// keep running while the RTX drives the screen.
+    /// </summary>
+    private void TryStopGuardServices()
+    {
+        if (RtxGuardServiceStopper is null)
+        {
+            bool? screenOnRtx;
+            try { screenOnRtx = PreySense.Helpers.DeviceHelper.IsDesktopScreenOnAdapter("NVIDIA"); }
+            catch { screenOnRtx = null; }
+            if (screenOnRtx != false || Volatile.Read(ref _gpuSwitchInProgress) != 0) return; // try again later
+        }
+        var stopped = (RtxGuardServiceStopper ?? RtxGuard.StopServices)(RtxGuard.PollingServices);
+        _rtxGuardServicesPending = false;
+        if (stopped.Count == 0) return;
+        TuningStore.Update(cfg =>
+        {
+            var list = cfg.Tuning.RtxGuardStoppedServices ??= new();
+            foreach (string name in stopped)
+                if (!list.Contains(name, StringComparer.OrdinalIgnoreCase)) list.Add(name);
+        });
+    }
+
     private void StopRtxGuardLocked(byte? mode)
     {
         _rtxGuardActive = false;
+        _rtxGuardServicesPending = false;
         _rtxGuardTimer?.Change(Timeout.Infinite, Timeout.Infinite);
         var tuning = (TuningConfigurationReader?.Invoke() ?? TuningStore.GetCurrent()).Tuning;
         var services = tuning.RtxGuardStoppedServices?.ToList() ?? new List<string>();
@@ -118,7 +141,15 @@ public partial class MainViewModel
     internal void PauseNvidiaDisplayServiceAfterSwitch(bool resumed)
     {
         if (!resumed || !_rtxGuardActive) return;
-        try { RtxGuard.StopServices(new[] { RtxGuard.DisplayContainerService }); }
+        // After the switch settles; TryStopGuardServices also skips this if the screen is now on the RTX.
+        Thread.Sleep(3000);
+        try
+        {
+            using var lease = PreySense.Core.Services.HardwareOperationGate.TryEnterNvidiaWork(TimeSpan.FromSeconds(30));
+            if (lease is null) { _rtxGuardServicesPending = true; return; }
+            lock (_rtxGuardGate)
+                if (_rtxGuardActive) TryStopGuardServices();
+        }
         catch (Exception ex) { AppLogger.Error("[RTX guard] " + ex.Message); }
     }
 
@@ -140,6 +171,13 @@ public partial class MainViewModel
         try
         {
             if (!_rtxGuardActive || _disposed) return;
+            if (_rtxGuardServicesPending)
+            {
+                using var pendingLease = PreySense.Core.Services.HardwareOperationGate.TryEnterNvidiaWork(TimeSpan.Zero);
+                if (pendingLease != null)
+                    lock (_rtxGuardGate)
+                        if (_rtxGuardActive && _rtxGuardServicesPending) TryStopGuardServices();
+            }
             PreySense.Helpers.DeviceHelper.InvalidateDisplayDevicePowerStateCache();
             if (PreySense.Helpers.DeviceHelper.GetDisplayDevicePowerState("VEN_10DE") != 1)
             {
@@ -157,17 +195,13 @@ public partial class MainViewModel
             }
             _rtxGuardLastLook = DateTime.UtcNow;
 
-            // Awake: services that restarted themselves go again.
-            if (RtxGuard.AnyRunning(RtxGuard.PollingServices))
+            // Awake: services that restarted themselves go again (never during a GPU switch).
+            if (!_rtxGuardServicesPending && RtxGuard.AnyRunning(RtxGuard.PollingServices))
             {
-                var stopped = RtxGuard.StopServices(RtxGuard.PollingServices);
-                if (stopped.Count > 0)
-                    TuningStore.Update(cfg =>
-                    {
-                        var list = cfg.Tuning.RtxGuardStoppedServices ??= new();
-                        foreach (string name in stopped)
-                            if (!list.Contains(name, StringComparer.OrdinalIgnoreCase)) list.Add(name);
-                    });
+                using var lease = PreySense.Core.Services.HardwareOperationGate.TryEnterNvidiaWork(TimeSpan.Zero);
+                if (lease != null)
+                    lock (_rtxGuardGate)
+                        if (_rtxGuardActive) TryStopGuardServices();
             }
 
             _rtxLuids ??= RtxGuard.NvidiaAdapterLuids();
