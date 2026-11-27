@@ -1,35 +1,19 @@
-# PreySense + iGPU Only
+# PreySense fork: battery and RTX power additions
 
-This fork is [PreySense](https://github.com/hammadzaigham/PreySense) with one addition: an **iGPU Only** GPU mode.
+This fork is [PreySense](https://github.com/hammadzaigham/PreySense) with battery-life and RTX power additions.
 Everything else is the original app, merged automatically from upstream every day.
 
 **Download:** the latest [Release](../../releases/latest) (`PreySense.exe`). It replaces the original exe; your settings carry over.
 
-## What iGPU Only does
+## About the removed iGPU Only mode
 
-PreySense's other GPU modes decide which GPU drives the screen, but apps can still choose to render on the NVIDIA GPU
-(browsers, launchers, overlays, games), which keeps it awake, warm and drawing power.
+Earlier builds had an **iGPU Only** GPU mode that disabled the RTX in Windows. It was removed: with the RTX disabled,
+NVIDIA's driver is unloaded, and on Windows only that driver can put the RTX into its fully-off state (D3cold), so a
+disabled RTX sat in the lighter D3hot sleep and saved nothing over Hybrid with the RTX asleep. If an earlier build
+left the RTX disabled, PreySense switches it back on at start.
 
-**iGPU Only** puts the screen on the integrated GPU and then **switches the NVIDIA GPU off in Windows** (the same as
-disabling it in Device Manager). No app can use it, so it stays fully powered down.
-
-- **Selecting any other mode** (Hybrid, Auto, Advanced Optimus) switches the NVIDIA GPU back on first, then applies that mode.
-  Picking Advanced Optimus is how you move the screen and games to the RTX.
-- **On battery** iGPU Only is applied automatically, and your previous mode returns when you plug in. Picking
-  another GPU mode by hand on battery keeps that mode until you next plug in, and Settings → "iGPU Only on battery"
-  turns the automatic switch off.
-  Turn this off with `"IgpuOnlyOnBattery": false` under `Session` in `preysense.json`.
-
-## Safety rules
-
-- It never switches the NVIDIA GPU off while a game or other real GPU work is running on it. It waits, names the app,
-  and switches off once it's closed. Browsers, Steam, Discord and similar apps don't hold it up: they recover on the integrated GPU.
-- It never switches it off while it drives a screen: BIOS dGPU Only, or an external monitor on an NVIDIA-wired port.
-- It switches the NVIDIA GPU back on before a dGPU Only (BIOS) change, when you Quit PreySense, and when Windows signs out
-  or shuts down, so Windows never starts with it disabled.
-
-- While the RTX is asleep (D3), the iGPU Only checks read its state from Windows and don't call NVIDIA's driver,
-  so checking never wakes it.
+Use **Hybrid** with the per-mode **Preferred GPU = Integrated graphics** (which also moves apps off the RTX
+automatically) to keep the RTX asleep on battery, and **Advanced Optimus** when plugged in for games.
 
 ## Other additions in this fork
 

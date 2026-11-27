@@ -150,7 +150,7 @@ namespace PreySense.Core.Configuration
         public bool IgpuOnly { get; set; } = false;
 
         /// <summary>Use iGPU Only automatically on battery, whatever mode is selected for AC.</summary>
-        public bool IgpuOnlyOnBattery { get; set; } = true;
+        public bool IgpuOnlyOnBattery { get; set; } // iGPU Only was removed; kept so old config files still load
 
         public SessionConfig Clone() => (SessionConfig)MemberwiseClone();
     }

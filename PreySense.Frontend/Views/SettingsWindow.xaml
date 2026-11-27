@@ -62,11 +62,6 @@
                                                       OffText="Disabled"
                                                       SwitchWidth="120"/>
 
-                            <controls:SettingSwitchRow Title="iGPU Only on battery"
-                                                      IsChecked="{Binding IsIgpuOnlyOnBatteryEnabled, Mode=OneWay}"
-                                                      Command="{Binding ToggleIgpuOnlyOnBatteryCommand}"
-                                                      SwitchWidth="92"/>
-
                             <controls:SettingSwitchRow Title="Sleep in Background"
                                                       IsChecked="{Binding IsSleepInBackgroundEnabled, Mode=OneWay}"
                                                       Command="{Binding ToggleSleepInBackgroundCommand}"

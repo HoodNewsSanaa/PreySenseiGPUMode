@@ -17,9 +17,9 @@ public class GpuDisplayStateTests
         var vm = (MainViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
         vm.ActiveGpuMuxMode = 1;
         Assert.IsTrue(vm.ShowDdsGpuTiles);
-        Assert.AreEqual(5, vm.GpuModeTileColumns);
+        Assert.AreEqual(4, vm.GpuModeTileColumns);
         vm.ActiveGpuMuxMode = 2;
-        Assert.AreEqual(5, vm.GpuModeTileColumns);
+        Assert.AreEqual(4, vm.GpuModeTileColumns);
         vm.IsBiosDiscreteGpuActive = true;
         Assert.IsFalse(vm.ShowDdsGpuTiles);
         Assert.AreEqual(2, vm.GpuModeTileColumns);

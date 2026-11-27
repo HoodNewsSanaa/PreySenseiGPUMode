@@ -97,7 +97,7 @@ namespace PreySense.Frontend.ViewModels
         private bool _isBiosDiscreteGpuActive;
 
         public bool ShowDdsGpuTiles => !IsBiosDiscreteGpuActive;
-        public int GpuModeTileColumns => IsBiosDiscreteGpuActive ? 2 : 5;
+        public int GpuModeTileColumns => IsBiosDiscreteGpuActive ? 2 : 4;
 
         // GPU selection flags (0=Optimus, 1=Automatic, 2=NVIDIA Only)
         public bool IsGpuEnduranceActive => !IsBiosDiscreteGpuActive && ActiveGpuMuxMode == 0;
@@ -207,7 +207,7 @@ namespace PreySense.Frontend.ViewModels
                 string s when int.TryParse(s, out int parsed) => parsed,
                 _ => -1
             };
-            if (muxVal < 0 || muxVal > IgpuOnlyMode) return;
+            if (muxVal < 0 || muxVal > 2) return; // iGPU Only was removed
 
             if (IsBiosDiscreteGpuActive)
             {

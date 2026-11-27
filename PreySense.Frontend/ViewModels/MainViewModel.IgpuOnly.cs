@@ -70,42 +70,12 @@ namespace PreySense.Frontend.ViewModels
             catch { return false; }
         }
 
-        /// <summary>True when the NVIDIA GPU should be off right now (iGPU Only selected, or on battery).</summary>
-        private bool WantsIgpuOnly()
-        {
-            if (_igpuOnlySuspended) return false;
-            var session = ReadSessionConfig();
-            if (session.IgpuOnly) return true;
-            return session.IgpuOnlyOnBattery && !_igpuOnlyBatteryOverride && _currentPowerSource == PowerSourceKind.Battery;
-        }
-
-        public bool IsIgpuOnlyOnBatteryEnabled
-        {
-            get
-            {
-                try { return ReadSessionConfig().IgpuOnlyOnBattery; }
-                catch { return true; }
-            }
-        }
-
-        [CommunityToolkit.Mvvm.Input.RelayCommand]
-        private async Task ToggleIgpuOnlyOnBattery()
-        {
-            bool enabled = !IsIgpuOnlyOnBatteryEnabled;
-            try { ConfigurationService.Instance.Update(cfg => cfg.Session.IgpuOnlyOnBattery = enabled); }
-            catch (Exception ex)
-            {
-                DiagnosticMessage = $"Could not save iGPU Only on battery: {ex.Message}";
-                return;
-            }
-            _igpuOnlyBatteryOverride = false;
-            OnPropertyChanged(nameof(IsIgpuOnlyOnBatteryEnabled));
-            DiagnosticMessage = enabled
-                ? "On battery, PreySense switches to iGPU Only."
-                : "On battery, PreySense keeps the GPU mode you picked.";
-            _igpuOnlyLastNotice = string.Empty;
-            await EnforceIgpuOnlyAsync("user");
-        }
+        /// <summary>
+        /// The iGPU Only mode was removed: with the RTX disabled in Windows, NVIDIA's driver is unloaded and the RTX
+        /// can't reach its fully-off state (D3cold), so it saved nothing over Hybrid. Never wanted any more; the
+        /// remaining enforcement only switches an RTX that an earlier build left disabled back on.
+        /// </summary>
+        private bool WantsIgpuOnly() => false;
 
         private void IgpuOnlyNotice(string message)
         {
