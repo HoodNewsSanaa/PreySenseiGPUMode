@@ -87,7 +87,9 @@ So when you change the GPU tile:
   to the RTX is lost). Both come back when you switch to a mode without the guard or quit PreySense. Every 2 seconds
   it checks Windows' cached RTX state; when the RTX is awake it reads Windows' GPU counters to see which apps are
   on it and sets each to "Power saving" in Windows' graphics settings, so it won't use the RTX again after it
-  restarts. Apps that already have a graphics choice of yours, Windows' own apps and NVIDIA's are never changed.
+  restarts. Other running programs from the same install folder (helpers such as Steam's built-in browser) are
+  set to Power saving with it. Apps that already have a graphics choice of yours, Windows' own apps and NVIDIA's
+  are never changed.
   Settings → "Apps moved by RTX guard" lists them and gives them their old setting back.
 
 All of these save and apply as soon as you pick a value.

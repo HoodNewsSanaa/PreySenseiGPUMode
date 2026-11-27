@@ -310,6 +310,7 @@ public partial class MainViewModel
     {
         string windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows).TrimEnd('\\') + "\\";
         var moved = new List<string>();
+        var caught = new List<string>();
         foreach (int pid in pids)
         {
             string? path = null;
@@ -321,11 +322,21 @@ public partial class MainViewModel
             }
             catch { }
             if (!IsMovableApp(path, windowsDir)) continue;
+            caught.Add(path!);
             if (RtxGuard.SetPowerSaving(path!))
             {
                 moved.Add(path!);
                 AppLogger.Log($"[RTX guard] {Path.GetFileName(path)} was on the RTX; set to Power saving.");
             }
+        }
+        // Apps often draw through helper programs (Steam's built-in browser, a launcher's updater, Chromium's GPU
+        // process). Running programs from the same install folder go with the one that was caught, so the whole
+        // app moves at once instead of one helper per RTX wake.
+        foreach (string helper in RunningHelpersOf(caught, windowsDir))
+        {
+            if (moved.Contains(helper, StringComparer.OrdinalIgnoreCase) || !RtxGuard.SetPowerSaving(helper)) continue;
+            moved.Add(helper);
+            AppLogger.Log($"[RTX guard] {Path.GetFileName(helper)} belongs to the same app; set to Power saving.");
         }
         if (moved.Count == 0) return;
         TuningStore.Update(cfg =>
@@ -412,6 +423,57 @@ public partial class MainViewModel
         if (path.Contains("\\NVIDIA Corporation\\", StringComparison.OrdinalIgnoreCase)) return false;
         if (path.Contains("\\WindowsApps\\", StringComparison.OrdinalIgnoreCase)) return false;
         return !string.Equals(Path.GetFileName(path), "PreySense.exe", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Running programs (other than the caught ones) whose file is inside a caught app's install folder.</summary>
+    private static List<string> RunningHelpersOf(IReadOnlyCollection<string> caught, string windowsDir)
+    {
+        var folders = caught.Select(InstallFolderFor).Where(f => f is not null).Select(f => f!)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var helpers = new List<string>();
+        if (folders.Count == 0) return helpers;
+        int sessionId = Process.GetCurrentProcess().SessionId;
+        foreach (var process in Process.GetProcesses())
+        {
+            using (process)
+            {
+                string? path = null;
+                try
+                {
+                    if (process.SessionId != sessionId) continue;
+                    path = process.MainModule?.FileName;
+                }
+                catch { continue; } // protected or already gone
+                if (!IsMovableApp(path, windowsDir) || caught.Contains(path!, StringComparer.OrdinalIgnoreCase)) continue;
+                if (folders.Any(f => path!.StartsWith(f, StringComparison.OrdinalIgnoreCase))
+                    && !helpers.Contains(path!, StringComparer.OrdinalIgnoreCase))
+                    helpers.Add(path!);
+            }
+        }
+        return helpers;
+    }
+
+    /// <summary>
+    /// The folder an app is installed in (the program's own folder, with a trailing backslash), or null when that
+    /// folder is too broad to stand for one app: a drive, Program Files, the user's profile or AppData roots.
+    /// </summary>
+    internal static string? InstallFolderFor(string? exePath)
+    {
+        if (string.IsNullOrWhiteSpace(exePath) || !Path.IsPathRooted(exePath)) return null;
+        string? dir = Path.GetDirectoryName(exePath);
+        if (string.IsNullOrEmpty(dir)) return null;
+        dir = dir.TrimEnd('\\');
+        var parts = dir.Split('\\', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 2) return null; // C:\
+        string last = parts[^1];
+        string[] broad =
+        {
+            "Program Files", "Program Files (x86)", "ProgramData", "Users", "AppData", "Local", "Roaming",
+            "LocalLow", "Programs", "Desktop", "Downloads", "Documents", "bin", "Games", "Apps",
+        };
+        if (broad.Contains(last, StringComparer.OrdinalIgnoreCase)) return null;
+        if (parts.Length == 3 && parts[1].Equals("Users", StringComparison.OrdinalIgnoreCase)) return null; // C:\Users\name
+        return dir + "\\";
     }
 
     internal IReadOnlyList<string> RtxGuardMovedApps =>

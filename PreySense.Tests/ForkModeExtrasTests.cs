@@ -476,6 +476,14 @@ public class ForkModeExtrasTests
         const string win = @"C:\Windows\";
         Assert.IsTrue(MainViewModel.IsMovableApp(@"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe", win));
         Assert.IsFalse(MainViewModel.IsMovableApp(@"C:\Windows\System32\dwm.exe", win));
+        Assert.AreEqual(@"C:\Program Files (x86)\Steam\", MainViewModel.InstallFolderFor(@"C:\Program Files (x86)\Steam\steam.exe"));
+        Assert.IsTrue(@"C:\Program Files (x86)\Steam\bin\cef\cef.win7x64\steamwebhelper.exe"
+            .StartsWith(MainViewModel.InstallFolderFor(@"C:\Program Files (x86)\Steam\steam.exe")!, StringComparison.OrdinalIgnoreCase));
+        Assert.IsNull(MainViewModel.InstallFolderFor(@"C:\Program Files\tool.exe"));
+        Assert.IsNull(MainViewModel.InstallFolderFor(@"C:\tool.exe"));
+        Assert.IsNull(MainViewModel.InstallFolderFor(@"C:\Users\giuli\tool.exe"));
+        Assert.IsNull(MainViewModel.InstallFolderFor(@"C:\Users\giuli\Downloads\setup.exe"));
+        Assert.IsNull(MainViewModel.InstallFolderFor(@"C:\Users\giuli\AppData\Local\Programs\app.exe"));
         Assert.IsFalse(MainViewModel.IsMovableApp(@"C:\Program Files\NVIDIA Corporation\NVIDIA app\CEF\NVIDIA Overlay.exe", win));
         Assert.IsFalse(MainViewModel.IsMovableApp(@"C:\Users\x\Desktop\PreySense\PreySense.exe", win));
         Assert.IsFalse(MainViewModel.IsMovableApp(null, win));
