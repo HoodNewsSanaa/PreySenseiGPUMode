@@ -46,7 +46,7 @@ public partial class MainViewModel
     /// </summary>
     private volatile bool _autoMoveActive;
     private DateTime _lastAutoRestart = DateTime.MinValue;
-    private static readonly TimeSpan AutoRestartMinInterval = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan AutoRestartMinInterval = TimeSpan.FromSeconds(60);
 
     internal bool IsAutoMoveActive => _autoMoveActive;
 
@@ -298,40 +298,34 @@ public partial class MainViewModel
     }
 
     /// <summary>
-    /// Automatic moving: apps set to Power saving only change GPU when they restart, so the RTX is restarted
-    /// (like Move apps off the RTX) when everything holding it is an everyday app or Windows itself. Never while
-    /// the RTX drives the screen or a game or other app is on it, and at most once every 5 minutes.
+    /// Automatic moving (modes whose preferred GPU is Integrated graphics): whenever anything holds the RTX
+    /// (apps, games, or Windows' own desktop compositor), the RTX is restarted so everything lets go of it and it
+    /// can sleep. Apps were set to Power saving first, so they come back on Intel. Never while the RTX drives the
+    /// screen, and at most once a minute so an app that keeps grabbing it can't cause a restart loop.
     /// </summary>
     private void MaybeRestartRtxForMove(IEnumerable<int> pids)
     {
         if (DateTime.UtcNow - _lastAutoRestart < AutoRestartMinInterval) return;
-        var blockers = new List<string>();
+        var holders = new List<string>();
         foreach (int pid in pids)
         {
-            string name;
-            try { using var p = Process.GetProcessById(pid); name = p.ProcessName; }
-            catch { continue; } // already gone
-            if (IsWindowsGpuHolder(name) || IgpuOnlyHarmlessApps.Contains(name)) continue;
-            blockers.Add(name);
+            try { using var p = Process.GetProcessById(pid); holders.Add(p.ProcessName); }
+            catch { } // already gone
         }
-        if (blockers.Count > 0)
-        {
-            var notice = PreySense.Frontend.Services.LocalizationService.Format(
-                "{0} is using the RTX, so it stays awake until it closes.", string.Join(", ", blockers.Distinct(StringComparer.OrdinalIgnoreCase)));
-            SetDiagnosticFromAnyThread(notice);
-            return;
-        }
-        if (_dispatcher is null) return;
+        if (holders.Count == 0 || _dispatcher is null) return;
         _lastAutoRestart = DateTime.UtcNow;
+        string names = string.Join(", ", holders.Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(name => IsWindowsGpuHolder(name) ? "Windows (" + name + ")" : name));
         _dispatcher.BeginInvoke(async () =>
         {
             try
             {
-                if (!_autoMoveActive || WantsIgpuOnly() || IsRtxAsleepOrOff()) return;
+                if (!_autoMoveActive || IsRtxAsleepOrOff()) return;
                 if (await IsDiscreteGpuDrivingScreenAsync()) return;
-                AppLogger.Log("[RTX guard] Only everyday apps or Windows hold the RTX; restarting it to move them.");
+                AppLogger.Log("[RTX guard] Kicking everything off the RTX: " + names);
                 string result = await MoveAppsOffDiscreteGpuAsync();
-                DiagnosticMessage = PreySense.Frontend.Services.LocalizationService.Translate(result);
+                DiagnosticMessage = PreySense.Frontend.Services.LocalizationService.Format(
+                    "Moved off the RTX: {0}.", names) + " " + PreySense.Frontend.Services.LocalizationService.Translate(result);
             }
             catch (Exception ex) { AppLogger.Error("[RTX guard] " + ex.Message); }
         });

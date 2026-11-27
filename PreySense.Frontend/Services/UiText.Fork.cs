@@ -225,6 +225,11 @@ internal static partial class UiText
         Turkish["Max processor state (E-cores)"] = "Maksimum işlemci durumu (E çekirdekler)";
         Turkish["{0}% (Turbo off)"] = "%{0} (Turbo kapalı)";
         Turkish["{0}%"] = "%{0}";
+        Chinese["Moved off the RTX: {0}."] = "已移出 RTX：{0}。";
+        Hindi["Moved off the RTX: {0}."] = "RTX से हटाए गए: {0}।";
+        Spanish["Moved off the RTX: {0}."] = "Movido fuera de la RTX: {0}.";
+        French["Moved off the RTX: {0}."] = "Retiré de la RTX : {0}.";
+        Turkish["Moved off the RTX: {0}."] = "RTX'ten taşındı: {0}.";
         Chinese["{0} is using the RTX, so it stays awake until it closes."] = "{0} 正在使用 RTX，因此在它关闭前 RTX 会保持唤醒。";
         Hindi["{0} is using the RTX, so it stays awake until it closes."] = "{0} RTX का उपयोग कर रहा है, इसलिए इसके बंद होने तक RTX जागा रहेगा।";
         Spanish["{0} is using the RTX, so it stays awake until it closes."] = "{0} está usando la RTX, así que seguirá activa hasta que se cierre.";
