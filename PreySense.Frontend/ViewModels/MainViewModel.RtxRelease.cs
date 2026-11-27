@@ -49,7 +49,9 @@ public partial class MainViewModel
             AppLogger.Log("[RTX release] RTX awake with no apps on it after switching mode; asking to restart it.");
             bool restart = RtxReleasePrompt?.Invoke() ?? await AskToRestartRtxAsync();
             if (!restart || !StillCurrent() || !await StuckAwakeWithoutAppsAsync()) return;
-            string result = await MoveAppsOffDiscreteGpuAsync();
+            string result = _dispatcher is null
+                ? await MoveAppsOffDiscreteGpuAsync()
+                : await _dispatcher.InvokeAsync(MoveAppsOffDiscreteGpuAsync).Task.Unwrap();
             SetDiagnosticFromAnyThread(LocalizationService.Translate(result));
         }
         catch (Exception ex)

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Management;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -108,12 +107,12 @@ namespace PreySense.Frontend.Views
             _sampling = true;
             try
             {
-                var (snapshot, remainingWh) = await Task.Run(() =>
+                var snapshot = await Task.Run(() =>
                 {
                     _sampler ??= new PowerDiagnosticsSampler(CpuDriverRuntime.Backend);
-                    return (_sampler.Sample(), ReadRemainingWh());
+                    return _sampler.Sample();
                 });
-                if (!_closed) Render(snapshot, remainingWh);
+                if (!_closed) Render(snapshot, snapshot.BatteryRemainingWh);
             }
             catch (Exception ex)
             {
@@ -174,26 +173,6 @@ namespace PreySense.Frontend.Views
             int m = (int)Math.Round((hours - h) * 60);
             if (m == 60) { h++; m = 0; }
             return h > 0 ? $"{h}h {m:00}m" : $"{m}m";
-        }
-
-        /// <summary>Remaining battery energy in Wh (all batteries), or null when Windows doesn't report it.</summary>
-        private static double? ReadRemainingWh()
-        {
-            try
-            {
-                using var searcher = new ManagementObjectSearcher(@"root\wmi", "SELECT RemainingCapacity FROM BatteryStatus");
-                double total = 0;
-                bool any = false;
-                foreach (ManagementObject battery in searcher.Get())
-                {
-                    using (battery)
-                    {
-                        if (battery["RemainingCapacity"] is uint mwh) { total += mwh / 1000.0; any = true; }
-                    }
-                }
-                return any ? total : null;
-            }
-            catch { return null; }
         }
     }
 }

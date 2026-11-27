@@ -16,7 +16,8 @@ public sealed record PowerDiagnosticsSnapshot(
     IReadOnlyList<PackageCStateResidency> PackageCStates,
     bool PackageCStatesSupported,
     int? DiscreteGpuPowerState,
-    bool? DiscreteGpuDisabled)
+    bool? DiscreteGpuDisabled,
+    double? BatteryRemainingWh = null)
 {
     /// <summary>Battery drain not explained by the CPU package (screen, RTX, SSD, Wi-Fi, board, losses).</summary>
     public double? RestOfSystemWatts => BatteryDischargeWatts is double battery && CpuPackageWatts is double cpu
@@ -74,7 +75,7 @@ public sealed class PowerDiagnosticsSampler
     public PowerDiagnosticsSnapshot Sample()
     {
         var (onAc, percent) = ReadSystemPowerStatus();
-        var (discharge, charge, wmiOnline) = ReadBatteryStatus();
+        var (discharge, charge, wmiOnline, remainingWh) = ReadBatteryStatus();
         onAc ??= wmiOnline;
         double? package = ReadPackageWatts();
         var cStates = ReadPackageCStates();
@@ -87,7 +88,7 @@ public sealed class PowerDiagnosticsSampler
             if (gpuState is null) gpuDisabled = PreySense.Helpers.DeviceHelper.IsDisplayDeviceDisabled("VEN_10DE");
         }
         catch { }
-        return new(onAc, percent, discharge, charge, package, cStates, _cStatesSupported, gpuState, gpuDisabled);
+        return new(onAc, percent, discharge, charge, package, cStates, _cStatesSupported, gpuState, gpuDisabled, remainingWh);
     }
 
     /// <summary>Human-readable name for a CM_POWER_DATA device state (1 = D0 … 4 = D3).</summary>
@@ -173,14 +174,14 @@ public sealed class PowerDiagnosticsSampler
         catch { return false; }
     }
 
-    private static (double? Discharge, double? Charge, bool? Online) ReadBatteryStatus()
+    private static (double? Discharge, double? Charge, bool? Online, double? RemainingWh) ReadBatteryStatus()
     {
         try
         {
             using var searcher = new ManagementObjectSearcher(@"root\wmi",
-                "SELECT DischargeRate, ChargeRate, PowerOnline FROM BatteryStatus");
+                "SELECT DischargeRate, ChargeRate, PowerOnline, RemainingCapacity FROM BatteryStatus");
             using var results = searcher.Get();
-            double discharge = 0, charge = 0;
+            double discharge = 0, charge = 0, remaining = 0;
             bool any = false;
             bool? online = null;
             foreach (ManagementBaseObject battery in results)
@@ -192,12 +193,13 @@ public sealed class PowerDiagnosticsSampler
                     discharge += Math.Abs(Convert.ToDouble(battery["DischargeRate"] ?? 0));
                     charge += Math.Abs(Convert.ToDouble(battery["ChargeRate"] ?? 0));
                     if (battery["PowerOnline"] is bool isOnline) online = (online ?? false) || isOnline;
+                    remaining += Convert.ToDouble(battery["RemainingCapacity"] ?? 0);
                 }
             }
-            if (!any) return (null, null, null);
-            return (discharge / 1000.0, charge / 1000.0, online);
+            if (!any) return (null, null, null, null);
+            return (discharge / 1000.0, charge / 1000.0, online, remaining > 0 ? remaining / 1000.0 : null);
         }
-        catch { return (null, null, null); }
+        catch { return (null, null, null, null); }
     }
 
     private static (bool? OnAc, int? Percent) ReadSystemPowerStatus()

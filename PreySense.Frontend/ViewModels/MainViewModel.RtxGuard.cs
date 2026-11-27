@@ -165,12 +165,25 @@ public partial class MainViewModel
     /// <summary>At quit or Windows shutdown: give NVIDIA's services back.</summary>
     private void StopRtxGuardForExit()
     {
+        // Runs on the UI thread at quit: never wait long for a guard change still in progress.
+        bool locked = false;
         try
         {
-            lock (_rtxGuardGate)
-                if (_rtxGuardActive) StopRtxGuardLocked(null);
+            Monitor.TryEnter(_rtxGuardGate, TimeSpan.FromSeconds(2), ref locked);
+            if (_rtxGuardActive || !locked)
+            {
+                _rtxGuardActive = false;
+                _rtxGuardTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+                var services = TuningStore.GetCurrent().Tuning.RtxGuardStoppedServices?.ToList();
+                if (services is { Count: > 0 })
+                {
+                    RtxGuard.StartServices(services); // Start() only sends the request: quick
+                    TuningStore.Update(cfg => cfg.Tuning.RtxGuardStoppedServices = new());
+                }
+            }
         }
         catch { }
+        finally { if (locked) Monitor.Exit(_rtxGuardGate); }
     }
 
     /// <summary>Every 2 s while guarded: only reads Windows' cached RTX state; looks further only when it is awake.</summary>
@@ -180,6 +193,7 @@ public partial class MainViewModel
         try
         {
             if (!_rtxGuardActive || _disposed) return;
+            if (Volatile.Read(ref _gpuSwitchInProgress) != 0) return; // leave the GPU alone while it switches
             if (_rtxGuardServicesPending)
                 lock (_rtxGuardGate)
                     if (_rtxGuardActive && _rtxGuardServicesPending) TryStopGuardServices();

@@ -77,7 +77,31 @@ namespace PreySense.Mode
             bool ok = WriteScheme(scheme, setting, ac, dc) || !required;
             if (TryGetActiveOverlay(out Guid overlay) && overlay != Guid.Empty && overlay != scheme)
                 WriteScheme(overlay, setting, ac, dc);
-            return PowerSetActiveScheme(IntPtr.Zero, in scheme) == 0 && ok;
+            ScheduleActivateLocked();
+            return ok;
+        }
+
+        private static Timer? _activateTimer;
+        private static readonly TimeSpan ActivateDelay = TimeSpan.FromMilliseconds(300);
+
+        /// <summary>
+        /// Written values take effect when the plan is re-activated. A mode switch writes up to a dozen settings;
+        /// re-activating after each one makes Windows re-apply the plan and notify every app a dozen times, which
+        /// can stutter the system. One re-activation shortly after the last write is enough.
+        /// </summary>
+        private static void ScheduleActivateLocked()
+        {
+            _activateTimer ??= new Timer(_ => ActivateNow(), null, Timeout.Infinite, Timeout.Infinite);
+            _activateTimer.Change(ActivateDelay, Timeout.InfiniteTimeSpan);
+        }
+
+        private static void ActivateNow()
+        {
+            try
+            {
+                if (TryGetActiveScheme(out Guid scheme)) PowerSetActiveScheme(IntPtr.Zero, in scheme);
+            }
+            catch (Exception ex) { AppLogger.Log("[Power plan] " + ex.Message); }
         }
 
         private static bool WriteScheme(Guid scheme, PowerPlanSetting setting, uint? ac, uint? dc)

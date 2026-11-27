@@ -96,6 +96,13 @@ public static class NvidiaPreferredGpu
 
     private static NvidiaSettingsResult WithGlobalProfile(Func<Api, IntPtr, IntPtr, bool> action, bool save)
     {
+        // Never at the same time as a GPU mode switch or an RTX restart.
+        using var nvidiaLease = PreySense.Core.Services.HardwareOperationGate.TryEnterNvidiaWork(TimeSpan.FromSeconds(30));
+        if (nvidiaLease is null)
+        {
+            AppLogger.Error("[Preferred GPU] The GPU is busy switching; NVIDIA's settings were left for later.");
+            return NvidiaSettingsResult.Failed;
+        }
         lock (Gate)
         {
             IntPtr session = IntPtr.Zero;

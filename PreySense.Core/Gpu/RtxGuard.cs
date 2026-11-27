@@ -43,7 +43,7 @@ public static class RtxGuard
             catch (InvalidOperationException) { /* not installed, or can't be stopped */ }
             catch (Exception ex) { AppLogger.Error($"[RTX guard] Could not stop {name}: {ex.Message}"); }
         }
-        DateTime deadline = DateTime.UtcNow.AddSeconds(30);
+        DateTime deadline = DateTime.UtcNow.AddSeconds(10);
         foreach (string name in stopping)
         {
             try

@@ -98,6 +98,14 @@ namespace PreySense.Gpu
                 return false;
             }
 
+            // Never at the same time as a GPU mode switch or an RTX restart (MarkDriverRestarted is called from
+            // inside one): retry on the next timer tick instead.
+            using var nvidiaLease = PreySense.Core.Services.HardwareOperationGate.TryEnterNvidiaWork(TimeSpan.Zero);
+            if (nvidiaLease is null)
+            {
+                StartTimerLocked();
+                return false;
+            }
             int rc = DriverWriter(_desiredMhz);
             if (rc == 0)
             {

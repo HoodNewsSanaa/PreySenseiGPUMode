@@ -334,7 +334,8 @@ namespace PreySense.Frontend.ViewModels
             try { await Task.Run(_hw.RefreshGpuAdapter); } catch { }
             // A preferred GPU chosen while the RTX was off could not reach NVIDIA's settings until now.
             byte activeMode = ActivePowerMode;
-            _ = Task.Run(() => ApplyPreferredGpuForMode(activeMode));
+            // Give the freshly loaded driver (and any GPU mode switch that follows) time to settle first.
+            _ = Task.Run(async () => { await Task.Delay(TimeSpan.FromSeconds(10)); ApplyPreferredGpuForMode(activeMode); });
             _igpuOnlyLastNotice = string.Empty;
             IgpuOnlyNotice(reason == "power" ? "Plugged in: RTX available again." : "RTX switched on.");
             return true;

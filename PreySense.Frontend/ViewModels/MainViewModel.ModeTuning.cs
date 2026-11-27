@@ -122,17 +122,9 @@ public partial class MainViewModel
         {
             for (int waited = 0; System.Threading.Volatile.Read(ref _gpuSwitchInProgress) != 0 && waited < 120; waited++)
                 System.Threading.Thread.Sleep(500);
-            using var nvidia = PreySense.Core.Services.HardwareOperationGate.TryEnterNvidiaWork(TimeSpan.FromSeconds(60));
-            if (nvidia is null || System.Threading.Volatile.Read(ref _gpuSwitchInProgress) != 0)
-            {
-                AppLogger.Error($"[Mode extras] {GetModeTitle(mode)}: GPU busy; NVIDIA settings will apply on the next mode switch.");
-            }
-            else
-            {
-                ApplyGpuClockLockForMode(mode);
-                ApplyPreferredGpuForMode(mode);
-            }
-            nvidia?.Dispose();
+            // The NVIDIA calls inside take the hardware gate themselves, so they never overlap a switch.
+            ApplyGpuClockLockForMode(mode);
+            ApplyPreferredGpuForMode(mode);
             // Stopping the NVIDIA app container can take a while; it doesn't affect display switching, so it runs
             // outside the gate and never holds up a GPU tile click.
             ApplyRtxGuardForMode(mode);
