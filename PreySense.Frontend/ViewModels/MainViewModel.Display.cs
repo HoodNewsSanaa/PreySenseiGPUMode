@@ -102,7 +102,13 @@ namespace PreySense.Frontend.ViewModels
                 DdsStatus? dds = null;
                 // iGPU Only fork: NVIDIA's display-switch API wakes the RTX. An RTX that is asleep or switched off
                 // can't be driving the screen, so it isn't asked; the last known state stays on screen.
-                if (!biosDiscrete && _hw.IsDdsAvailable && !IsRtxAsleepOrOff())
+                // Nor is it asked while the laptop screen is on Intel: the GPU mode only changes through PreySense
+                // (which reads it after each switch) or by the RTX taking over the screen, which shows up here as the
+                // screen moving to the NVIDIA adapter. Display changes happen often (dwm, refresh rate, brightness),
+                // and each read kept an awake RTX up for several more seconds or woke one that was dozing off.
+                bool? screenOnRtx = null;
+                try { screenOnRtx = PreySense.Helpers.DeviceHelper.IsDesktopScreenOnAdapter("NVIDIA"); } catch { }
+                if (!biosDiscrete && _hw.IsDdsAvailable && screenOnRtx != false && !IsRtxAsleepOrOff())
                 {
                     try { dds = _hw.GetDdsStatus(); }
                     catch (Exception ex) { AppLogger.Error($"GPU display status read failed: {ex.Message}"); }
