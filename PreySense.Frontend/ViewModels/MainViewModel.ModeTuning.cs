@@ -66,15 +66,7 @@ public partial class MainViewModel
 
     public bool ApplyCpuBoostForMode(byte mode)
     {
-        ApplyCpuFrequencyCapForMode(mode);
-        ApplyGpuClockLockForMode(mode);
-        ApplyPcieLinkPowerSavingForMode(mode);
-        ApplyCpuMaxStateForMode(mode);
-        ApplyPreferredGpuForMode(mode);
-        ApplyPhysxForMode(mode);
-        ApplyProcessorPolicyForMode(mode);
-        ApplyKeyboardLightingForMode(mode);
-        ApplyRtxGuardForMode(mode);
+        QueueModeExtras(mode);
         if (!IsModeCpuBoostTuningEnabled(mode)) return true;
         int boost = CpuBoostModeForMode(mode);
         if (_dispatcher == null || _dispatcher.CheckAccess()) CpuBoostMode = boost;
@@ -84,20 +76,50 @@ public partial class MainViewModel
         return _lastCpuBoostApplySucceeded;
     }
 
+    private static readonly object ModeExtrasLock = new();
+    private System.Threading.Tasks.Task? _modeExtrasChain;
+    private int _modeExtrasGeneration;
+
+    /// <summary>
+    /// iGPU Only fork: the Mode Extras (CPU caps, EPP, PCIe, NVIDIA settings, keyboard lighting, RTX guard) run in
+    /// the background, one switch at a time, after the mode itself is confirmed. Some of them can take seconds
+    /// (stopping NVIDIA's services, waking NVIDIA's driver), and the mode switcher must not wait for them. When
+    /// modes are switched quickly, only the latest mode's extras are applied.
+    /// </summary>
+    private void QueueModeExtras(byte mode)
+    {
+        if (_dispatcher is null) { ApplyModeExtrasNow(mode); return; } // tests and design-time: run in place
+        int generation = System.Threading.Interlocked.Increment(ref _modeExtrasGeneration);
+        lock (ModeExtrasLock)
+        {
+            var previous = _modeExtrasChain ?? System.Threading.Tasks.Task.CompletedTask;
+            _modeExtrasChain = previous.ContinueWith(_ =>
+            {
+                if (generation != System.Threading.Volatile.Read(ref _modeExtrasGeneration) || _disposed) return;
+                ApplyModeExtrasNow(mode);
+            }, System.Threading.Tasks.TaskScheduler.Default);
+        }
+    }
+
+    private void ApplyModeExtrasNow(byte mode)
+    {
+        var started = System.Diagnostics.Stopwatch.StartNew();
+        ApplyCpuFrequencyCapForMode(mode);
+        ApplyCpuMaxStateForMode(mode);
+        ApplyProcessorPolicyForMode(mode);
+        ApplyPcieLinkPowerSavingForMode(mode);
+        ApplyKeyboardLightingForMode(mode);
+        ApplyPhysxForMode(mode);
+        ApplyGpuClockLockForMode(mode);
+        ApplyPreferredGpuForMode(mode);
+        ApplyRtxGuardForMode(mode);
+        if (started.ElapsedMilliseconds > 3000)
+            AppLogger.Log($"[Mode extras] {GetModeTitle(mode)} took {started.ElapsedMilliseconds} ms (in the background).");
+    }
+
     private async System.Threading.Tasks.Task<bool> ApplyCpuBoostForModeAsync(byte mode)
     {
-        await System.Threading.Tasks.Task.Run(() =>
-        {
-            ApplyCpuFrequencyCapForMode(mode);
-            ApplyGpuClockLockForMode(mode);
-            ApplyPcieLinkPowerSavingForMode(mode);
-            ApplyCpuMaxStateForMode(mode);
-            ApplyPreferredGpuForMode(mode);
-            ApplyPhysxForMode(mode);
-            ApplyProcessorPolicyForMode(mode);
-            ApplyKeyboardLightingForMode(mode);
-            ApplyRtxGuardForMode(mode);
-        });
+        QueueModeExtras(mode);
         if (!IsModeCpuBoostTuningEnabled(mode)) return true;
         return await WriteCpuBoostAsync(mode);
     }
