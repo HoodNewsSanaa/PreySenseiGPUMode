@@ -305,6 +305,7 @@ namespace PreySense.Frontend.ViewModels
                     if (persistPreference)
                         SaveGpuModePreference(muxVal);
                     DiagnosticMessage = $"GPU mode set to {GetGpuModeName(muxVal)}.";
+                    OnGpuModeSwitched(); // iGPU Only fork: everything follows the new GPU
                     var display = await Task.Run(() => (_hw.GetSupportedRefreshRates(), _hw.GetDisplayRefreshRate()));
                     ApplyRefreshRateOptions(display.Item1, display.Item2);
                 }

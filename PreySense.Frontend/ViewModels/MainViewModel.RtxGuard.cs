@@ -80,7 +80,7 @@ public partial class MainViewModel
                 TuningStore.Update(cfg => cfg.Tuning.RtxGuardStoppedServices?.RemoveAll(name =>
                     noLongerStopped.Contains(name, StringComparer.OrdinalIgnoreCase)));
             }
-            bool autoMove = ProfileForMode(tuning, mode).PreferredGpu == (int)NvidiaPreferredGpu.Integrated;
+            bool autoMove = EffectivePreferredGpu(tuning, mode) == (int)NvidiaPreferredGpu.Integrated;
             lock (_rtxGuardGate)
             {
                 if (wanted && !_rtxGuardActive) StartRtxGuardLocked(mode);
@@ -92,6 +92,9 @@ public partial class MainViewModel
                     AppLogger.Log($"[RTX guard] {GetModeTitle(mode)}: automatic moving {(autoMove ? "on" : "off")}.");
                 }
                 UpdateWatcherTimerLocked();
+                // Apps PreySense set to Power saving only stay on Intel while Intel is the GPU in use; with the RTX
+                // driving the screen they go back to their own choice, so everything runs on one GPU.
+                SyncMovedAppPreferences(_rtxGuardActive || _autoMoveActive);
             }
         }
         catch (Exception ex)
@@ -331,6 +334,23 @@ public partial class MainViewModel
             }
             catch (Exception ex) { AppLogger.Error("[RTX guard] " + ex.Message); }
         });
+    }
+
+    private bool? _movedAppsApplied;
+
+    /// <summary>Adds (or takes back) the Power saving choices PreySense made, keeping the list for next time.</summary>
+    private void SyncMovedAppPreferences(bool apply)
+    {
+        if (_movedAppsApplied == apply || RtxGuardServiceStopper is not null) return;
+        _movedAppsApplied = apply;
+        var apps = (TuningStore.GetCurrent().Tuning.RtxGuardMovedApps ?? new()).ToList();
+        foreach (string path in apps)
+        {
+            if (apply) RtxGuard.SetPowerSaving(path);
+            else RtxGuard.RemovePowerSaving(path);
+        }
+        if (apps.Count > 0)
+            AppLogger.Log($"[GPU follow] {(apply ? "Re-applied" : "Took back")} Power saving for {apps.Count} app(s).");
     }
 
     /// <summary>Windows' own processes that keep memory on a GPU (the desktop compositor and friends).</summary>

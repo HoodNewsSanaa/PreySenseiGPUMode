@@ -339,7 +339,7 @@ public partial class MainViewModel
             lock (PreferredGpuGate)
             {
                 var tuning = (TuningConfigurationReader?.Invoke() ?? TuningStore.GetCurrent()).Tuning;
-                int? wanted = ProfileForMode(tuning, mode).PreferredGpu;
+                int? wanted = EffectivePreferredGpu(tuning, mode);
                 if (NvidiaPreferredGpu.IsValid(wanted))
                 {
                     if (!force && tuning.LastAppliedPreferredGpu == wanted) return;

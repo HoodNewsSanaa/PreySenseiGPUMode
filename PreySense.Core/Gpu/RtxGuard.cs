@@ -219,6 +219,62 @@ public static class RtxGuard
         }
     }
 
+    /// <summary>
+    /// Every process with graphics work or memory (dedicated or shared) on any GPU, as (process ID, LUID) pairs.
+    /// Null when the counters can't be read.
+    /// </summary>
+    public static List<(int Pid, string Luid)>? ProcessesByAdapter()
+    {
+        var pairs = new HashSet<(int, string)>();
+        try
+        {
+            CollectPairs("SELECT Name, DedicatedUsage, SharedUsage FROM Win32_PerfFormattedData_GPUPerformanceCounters_GPUProcessMemory",
+                new[] { "DedicatedUsage", "SharedUsage" }, pairs);
+            CollectPairs("SELECT Name, UtilizationPercentage FROM Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine",
+                new[] { "UtilizationPercentage" }, pairs);
+            return pairs.ToList();
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("[GPU follow] GPU counters: " + ex.Message);
+            return null;
+        }
+    }
+
+    private static void CollectPairs(string query, string[] properties, HashSet<(int, string)> pairs)
+    {
+        using var searcher = new ManagementObjectSearcher(@"root\cimv2", query);
+        foreach (ManagementObject item in searcher.Get())
+        {
+            using (item)
+            {
+                if (item["Name"] is not string name) continue;
+                bool used = properties.Any(p => Convert.ToUInt64(item[p] ?? 0UL) > 0);
+                if (used && TryParseCounterInstance(name, out int pid, out string luid)) pairs.Add((pid, luid));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Starts a program as the signed-in user, not elevated like PreySense, by asking Explorer to open it.
+    /// </summary>
+    public static bool LaunchAsUser(string exePath)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", "\"" + exePath + "\"")
+            {
+                UseShellExecute = false
+            });
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("[GPU follow] Could not start " + exePath + ": " + ex.Message);
+            return false;
+        }
+    }
+
     /// <summary>Parses "pid_1234_luid_0x00000000_0x0000ABCD_phys_0..." into its process ID and LUID.</summary>
     public static bool TryParseCounterInstance(string name, out int pid, out string luid)
     {

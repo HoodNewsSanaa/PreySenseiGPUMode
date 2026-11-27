@@ -15,6 +15,19 @@ left the RTX disabled, PreySense switches it back on at start.
 Use **Hybrid** with the per-mode **Preferred GPU = Integrated graphics** (which also moves apps off the RTX
 automatically) to keep the RTX asleep on battery, and **Advanced Optimus** when plugged in for games.
 
+## One GPU at a time
+
+Running an app on one GPU while the other drives the screen means copying every frame across, which feels slower.
+So when you change the GPU tile:
+
+- NVIDIA's preferred GPU follows the screen: **NVIDIA processor** while the RTX drives it (Advanced Optimus,
+  dGPU Only), otherwise each mode's own Preferred GPU setting.
+- Apps PreySense set to "Power saving" go back to their own choice while the RTX drives the screen, and are set
+  to Power saving again when you return to Hybrid.
+- A few seconds after the switch, PreySense lists apps still running on the other GPU and offers to restart them
+  (they close and open again, started as you, not as administrator). Apps that only hide to the tray when closed
+  (Steam, Discord) are named so you can close them from their tray icon.
+
 ## Other additions in this fork
 
 **Mode Extras** (in each mode's tuning window):
