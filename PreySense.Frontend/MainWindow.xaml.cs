@@ -198,7 +198,10 @@ namespace PreySense.Frontend
             if (!_isExplicitExit)
             {
                 e.Cancel = true;
-                HideApplicationWindowsForAutoHide();
+                // iGPU Only fork: hiding is skipped while a settings page or dialog keeps PreySense open, which
+                // made the X do nothing. Minimize then, the same as the Predator key.
+                if (App.SuppressAutoHide) MinimizeApplicationWindows();
+                else HideApplicationWindowsForAutoHide();
                 return;
             }
             base.OnClosing(e);
