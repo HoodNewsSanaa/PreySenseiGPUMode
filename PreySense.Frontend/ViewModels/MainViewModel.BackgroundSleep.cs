@@ -67,7 +67,8 @@ public partial class MainViewModel
         if (asleep)
         {
             // Telemetry reopens NVML when the window comes back; keeping it open can hold the RTX awake.
-            try { PreySense.Gpu.NvmlHelper.Shutdown(); } catch { }
+            // Off the UI thread: Shutdown waits for any NVML call in progress, which can take a moment.
+            _ = System.Threading.Tasks.Task.Run(() => { try { PreySense.Gpu.NvmlHelper.Shutdown(); } catch { } });
         }
         AppLogger.Log(asleep ? "[Background sleep] Sleeping." : "[Background sleep] Awake.");
     }

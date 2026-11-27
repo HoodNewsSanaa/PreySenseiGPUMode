@@ -73,6 +73,9 @@ public partial class MainViewModel
         {
             locked = await IgpuOnlyLock.WaitAsync(TimeSpan.FromSeconds(30));
             if (!locked) return "iGPU Only is busy switching the RTX. Try again in a moment.";
+            // iGPU Only may have switched it off while we waited: never switch it back on from here.
+            if (_igpuOnlyRtxOff || WantsIgpuOnly() || await Task.Run(() => _hw.IsDiscreteGpuDisabled()) == true)
+                return "The RTX is already switched off (iGPU Only).";
             if (!IsBusy) { IsBusy = true; markedBusy = true; }
             DiagnosticMessage = "Restarting the RTX to move apps to the integrated GPU...";
 

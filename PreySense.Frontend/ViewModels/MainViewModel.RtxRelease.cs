@@ -65,6 +65,7 @@ public partial class MainViewModel
     /// <summary>True when the RTX is awake (and not driving the screen) while no app is using it.</summary>
     private async Task<bool> StuckAwakeWithoutAppsAsync()
     {
+        if (WantsIgpuOnly()) return false; // iGPU Only is about to switch it off anyway
         if (IsRtxAsleepOrOff()) return false;
         if (Volatile.Read(ref _gpuSwitchInProgress) != 0) return false;
         var apps = await Task.Run(() => _hw.GetDiscreteGpuAppNames());
