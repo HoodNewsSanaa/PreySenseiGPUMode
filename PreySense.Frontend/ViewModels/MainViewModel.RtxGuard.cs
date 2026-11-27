@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using PreySense.Core.Configuration;
 using PreySense.Gpu;
+using PreySense.Mode;
 
 namespace PreySense.Frontend.ViewModels;
 
