@@ -225,6 +225,11 @@ internal static partial class UiText
         Turkish["Max processor state (E-cores)"] = "Maksimum işlemci durumu (E çekirdekler)";
         Turkish["{0}% (Turbo off)"] = "%{0} (Turbo kapalı)";
         Turkish["{0}%"] = "%{0}";
+        Chinese["Windows desktop (dwm)"] = "Windows 桌面（dwm）";
+        Hindi["Windows desktop (dwm)"] = "Windows डेस्कटॉप (dwm)";
+        Spanish["Windows desktop (dwm)"] = "Escritorio de Windows (dwm)";
+        French["Windows desktop (dwm)"] = "Bureau Windows (dwm)";
+        Turkish["Windows desktop (dwm)"] = "Windows masaüstü (dwm)";
         Chinese["RTX guard"] = "RTX 守护";
         Chinese["On: keep the RTX asleep"] = "开启：让 RTX 保持睡眠";
         Chinese["Apps moved by RTX guard"] = "RTX 守护移动的应用";

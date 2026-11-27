@@ -46,7 +46,13 @@ public partial class MainViewModel
                 return ("PreySense couldn't read which apps use the RTX. Try again in a moment.", Array.Empty<string>());
             var list = apps.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             if (list.Count == 0)
+            {
+                // Windows' own desktop compositor (dwm) can keep memory on the RTX after a GPU mode switch, which
+                // keeps the RTX awake without any app showing up. A restart of the RTX releases it.
+                if (!IsRtxAsleepOrOff())
+                    return (null, new[] { PreySense.Frontend.Services.LocalizationService.Translate("Windows desktop (dwm)") });
                 return ("No apps are using the RTX, so it can already go to sleep.", Array.Empty<string>());
+            }
             return (null, list);
         }
         catch (Exception ex)
