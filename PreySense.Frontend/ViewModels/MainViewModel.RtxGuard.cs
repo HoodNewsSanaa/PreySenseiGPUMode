@@ -58,6 +58,15 @@ public partial class MainViewModel
             if (!ProfileManager.IsSupportedMode(mode)) return;
             var tuning = (TuningConfigurationReader?.Invoke() ?? TuningStore.GetCurrent()).Tuning;
             bool wanted = ProfileForMode(tuning, mode).RtxGuard == true;
+            // Earlier builds also stopped NVIDIA's Display Container; give it back right away if they did.
+            var noLongerStopped = tuning.RtxGuardStoppedServices?
+                .Where(name => !RtxGuard.PollingServices.Contains(name, StringComparer.OrdinalIgnoreCase)).ToList();
+            if (noLongerStopped is { Count: > 0 })
+            {
+                (RtxGuardServiceStarter ?? RtxGuard.StartServices)(noLongerStopped);
+                TuningStore.Update(cfg => cfg.Tuning.RtxGuardStoppedServices?.RemoveAll(name =>
+                    noLongerStopped.Contains(name, StringComparer.OrdinalIgnoreCase)));
+            }
             lock (_rtxGuardGate)
             {
                 if (wanted && !_rtxGuardActive) StartRtxGuardLocked(mode);

@@ -78,7 +78,7 @@ disabling it in Device Manager). No app can use it, so it stays fully powered do
   brightness keys may still light the keyboard briefly in an "Off" mode.
 
 - **RTX guard**: keeps things from waking the RTX in that mode (Optimus). It stops NVIDIA's polling services
-  (Display Container, NVIDIA app container, FrameView; NVIDIA Control Panel and the NVIDIA app won't open
+  (NVIDIA app container and FrameView; the NVIDIA app won't open
   meanwhile) and starts them again when you switch to a mode without the guard or quit PreySense. Every 2 seconds
   it checks Windows' cached RTX state; when the RTX is awake it reads Windows' GPU counters to see which apps are
   on it and sets each to "Power saving" in Windows' graphics settings, so it won't use the RTX again after it

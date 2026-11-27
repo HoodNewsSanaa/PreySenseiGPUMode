@@ -437,7 +437,7 @@ public class ForkModeExtrasTests
             var vm = (MainViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
             vm.TuningConfigurationStore = store;
             var started = new List<string>();
-            vm.RtxGuardServiceStopper = names => new List<string> { "NVDisplay.ContainerLocalSystem" };
+            vm.RtxGuardServiceStopper = names => new List<string> { "NvContainerLocalSystem" };
             vm.RtxGuardServiceStarter = names => started.AddRange(names);
 
             vm.ApplyRtxGuardForMode(4); // not guarded, nothing stopped: nothing to do
@@ -446,11 +446,11 @@ public class ForkModeExtrasTests
 
             vm.ApplyRtxGuardForMode(6); // Eco: guard on
             Assert.IsTrue(vm.IsRtxGuardActive);
-            CollectionAssert.AreEqual(new[] { "NVDisplay.ContainerLocalSystem" }, store.GetCurrent().Tuning.RtxGuardStoppedServices);
+            CollectionAssert.AreEqual(new[] { "NvContainerLocalSystem" }, store.GetCurrent().Tuning.RtxGuardStoppedServices);
 
             vm.ApplyRtxGuardForMode(4); // guard off: services back
             Assert.IsFalse(vm.IsRtxGuardActive);
-            CollectionAssert.AreEqual(new[] { "NVDisplay.ContainerLocalSystem" }, started);
+            CollectionAssert.AreEqual(new[] { "NvContainerLocalSystem" }, started);
             Assert.IsEmpty(store.GetCurrent().Tuning.RtxGuardStoppedServices);
         }
         finally { Directory.Delete(folder, true); }

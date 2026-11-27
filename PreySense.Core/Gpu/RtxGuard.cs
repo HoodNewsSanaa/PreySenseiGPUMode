@@ -15,10 +15,13 @@ namespace PreySense.Gpu;
 /// </summary>
 public static class RtxGuard
 {
-    /// <summary>NVIDIA background services that poll the GPU (Display Container, NVIDIA app container, FrameView).</summary>
+    /// <summary>
+    /// NVIDIA background services that poll the GPU (NVIDIA app container, FrameView). The Display Container is
+    /// deliberately not stopped: NVIDIA's display switching (Hybrid / Auto / Advanced Optimus) needs it, and
+    /// stopping it broke GPU mode switches and, together with a switch, froze the system.
+    /// </summary>
     public static readonly string[] PollingServices =
     {
-        "NVDisplay.ContainerLocalSystem",
         "NvContainerLocalSystem",
         "FvSvc"
     };
