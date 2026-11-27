@@ -74,6 +74,30 @@ public static class RtxGuard
         return false;
     }
 
+    /// <summary>The service NVIDIA's display switching (Hybrid / Auto / Advanced Optimus) goes through.</summary>
+    public const string DisplayContainerService = "NVDisplay.ContainerLocalSystem";
+
+    /// <summary>Starts a service and waits until it runs. Returns true when it was stopped and is now running.</summary>
+    public static bool StartAndWait(string name, TimeSpan timeout)
+    {
+        try
+        {
+            using var sc = new ServiceController(name);
+            if (sc.Status is ServiceControllerStatus.Running) return false;
+            if (sc.Status is ServiceControllerStatus.StopPending)
+                sc.WaitForStatus(ServiceControllerStatus.Stopped, timeout);
+            sc.Start();
+            sc.WaitForStatus(ServiceControllerStatus.Running, timeout);
+            AppLogger.Log($"[RTX guard] Started {name} for a GPU mode switch.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error($"[RTX guard] Could not start {name}: {ex.Message}");
+            return false;
+        }
+    }
+
     public static void StartServices(IEnumerable<string> names)
     {
         foreach (string name in names)

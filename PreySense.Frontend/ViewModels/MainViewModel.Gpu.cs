@@ -238,9 +238,13 @@ namespace PreySense.Frontend.ViewModels
             System.Threading.Interlocked.Increment(ref _gpuDisplayRevision);
             DiagnosticMessage = $"Switching GPU mode to {GetGpuModeName(muxVal)}...";
             IsBusy = true;
+            bool resumedDisplayService = false;
             try
             {
                 using var hardwareLease = await HardwareOperationGate.EnterDisplaySwitchAsync();
+                // iGPU Only fork: the RTX guard may have stopped the NVIDIA service display switching needs.
+                if (_hw is ProductionHardwareService)
+                    resumedDisplayService = await Task.Run(ResumeNvidiaDisplayServiceForSwitch);
                 var current = await Task.Run(() => _hw.IsDdsAvailable ? _hw.GetDdsStatus() : null);
                 if (current?.IsSupported != true)
                 {
@@ -302,6 +306,8 @@ namespace PreySense.Frontend.ViewModels
             {
                 IsBusy = false;
                 System.Threading.Volatile.Write(ref _gpuSwitchInProgress, 0);
+                if (resumedDisplayService)
+                    _ = Task.Run(() => PauseNvidiaDisplayServiceAfterSwitch(true));
             }
         }
 

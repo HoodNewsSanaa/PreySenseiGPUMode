@@ -102,6 +102,26 @@ public partial class MainViewModel
         AppLogger.Log(mode is byte m ? $"[RTX guard] {GetModeTitle(m)}: guard off." : "[RTX guard] Guard off.");
     }
 
+    /// <summary>
+    /// NVIDIA's display switching needs the Display Container service. Before a GPU mode switch, starts it again if
+    /// the guard stopped it; returns true when the guard should stop it again afterwards.
+    /// </summary>
+    internal bool ResumeNvidiaDisplayServiceForSwitch()
+    {
+        if (!_rtxGuardActive) return false;
+        if (!RtxGuard.StartAndWait(RtxGuard.DisplayContainerService, TimeSpan.FromSeconds(15))) return false;
+        Thread.Sleep(1500); // let NVIDIA's API come up
+        return true;
+    }
+
+    /// <summary>After a GPU mode switch: the guard stops the Display Container again if it is still on.</summary>
+    internal void PauseNvidiaDisplayServiceAfterSwitch(bool resumed)
+    {
+        if (!resumed || !_rtxGuardActive) return;
+        try { RtxGuard.StopServices(new[] { RtxGuard.DisplayContainerService }); }
+        catch (Exception ex) { AppLogger.Error("[RTX guard] " + ex.Message); }
+    }
+
     /// <summary>At quit or Windows shutdown: give NVIDIA's services back.</summary>
     private void StopRtxGuardForExit()
     {
