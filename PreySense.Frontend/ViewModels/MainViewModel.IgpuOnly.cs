@@ -121,6 +121,16 @@ namespace PreySense.Frontend.ViewModels
             NotifyGpuSelectionsChanged();
         }
 
+        /// <summary>After the RTX is switched back on: replace the iGPU Only selection with the saved GPU mode.</summary>
+        private void ShowRtxOnState()
+        {
+            if (ActiveGpuMuxMode != IgpuOnlyMode) return;
+            int preference = Math.Clamp(ReadSessionConfig().GpuModePreference, 0, 2);
+            ActiveGpuMuxMode = preference;
+            GpuMuxModeName = GetGpuModeName(preference);
+            NotifyGpuSelectionsChanged();
+        }
+
         /// <summary>Must run on the UI thread (EnforceIgpuOnlyAsync guarantees it).</summary>
         private void EnsureIgpuOnlyTimer()
         {
@@ -130,7 +140,7 @@ namespace PreySense.Frontend.ViewModels
                 System.Windows.Threading.DispatcherPriority.Background,
                 (_, _) =>
                 {
-                    if (!_disposed && (_igpuOnlyRtxOff || WantsIgpuOnly()))
+                    if (!_disposed && (_igpuOnlyRtxOff || WantsIgpuOnly() || ActiveGpuMuxMode == IgpuOnlyMode))
                         _ = EnforceIgpuOnlyAsync("recheck");
                 },
                 _dispatcher);
@@ -168,6 +178,10 @@ namespace PreySense.Frontend.ViewModels
                 if (want && disabled == true)
                 {
                     ShowIgpuOnlyState();
+                }
+                else if (!want && disabled == false)
+                {
+                    ShowRtxOnState(); // RTX is on: a leftover iGPU Only selection is wrong
                 }
                 else if (want)
                 {
@@ -324,6 +338,9 @@ namespace PreySense.Frontend.ViewModels
                 return false;
             }
             _igpuOnlyRtxOff = false;
+            // The tile must not keep saying iGPU Only now that the RTX is on, even if NVIDIA's display API
+            // takes a while to answer: show the saved GPU mode until the real state is read below.
+            ShowRtxOnState();
             // Wait (up to ~20 s) for NVIDIA's display-switch API to come back before anything uses it. The fresh
             // driver can put the idle RTX straight back to sleep, and the API fails while it sleeps, so wake it
             // before each try.
