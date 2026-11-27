@@ -24,8 +24,10 @@ public static class HardwareOperationGate
 
     public static async Task<IDisposable> EnterDisplaySwitchAsync()
     {
-        if (!await Gate.WaitAsync(TimeSpan.FromSeconds(5)))
-            throw new TimeoutException("A sensor read is still running. GPU switching was postponed.");
+        // iGPU Only fork: background NVIDIA work (Mode Extras) can hold the gate for a few seconds; wait for it
+        // rather than failing the switch.
+        if (!await Gate.WaitAsync(TimeSpan.FromSeconds(30)))
+            throw new TimeoutException("Another GPU operation is still running. GPU switching was postponed.");
         return new Lease();
     }
 

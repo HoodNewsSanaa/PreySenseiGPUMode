@@ -131,8 +131,11 @@ public partial class MainViewModel
             {
                 ApplyGpuClockLockForMode(mode);
                 ApplyPreferredGpuForMode(mode);
-                ApplyRtxGuardForMode(mode);
             }
+            nvidia?.Dispose();
+            // Stopping the NVIDIA app container can take a while; it doesn't affect display switching, so it runs
+            // outside the gate and never holds up a GPU tile click.
+            ApplyRtxGuardForMode(mode);
         }
         if (started.ElapsedMilliseconds > 3000)
             AppLogger.Log($"[Mode extras] {GetModeTitle(mode)} took {started.ElapsedMilliseconds} ms (in the background).");

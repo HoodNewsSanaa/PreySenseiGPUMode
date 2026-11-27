@@ -181,12 +181,8 @@ public partial class MainViewModel
         {
             if (!_rtxGuardActive || _disposed) return;
             if (_rtxGuardServicesPending)
-            {
-                using var pendingLease = PreySense.Core.Services.HardwareOperationGate.TryEnterNvidiaWork(TimeSpan.Zero);
-                if (pendingLease != null)
-                    lock (_rtxGuardGate)
-                        if (_rtxGuardActive && _rtxGuardServicesPending) TryStopGuardServices();
-            }
+                lock (_rtxGuardGate)
+                    if (_rtxGuardActive && _rtxGuardServicesPending) TryStopGuardServices();
             PreySense.Helpers.DeviceHelper.InvalidateDisplayDevicePowerStateCache();
             if (PreySense.Helpers.DeviceHelper.GetDisplayDevicePowerState("VEN_10DE") != 1)
             {
@@ -206,12 +202,8 @@ public partial class MainViewModel
 
             // Awake: services that restarted themselves go again (never during a GPU switch).
             if (!_rtxGuardServicesPending && RtxGuard.AnyRunning(RtxGuard.PollingServices))
-            {
-                using var lease = PreySense.Core.Services.HardwareOperationGate.TryEnterNvidiaWork(TimeSpan.Zero);
-                if (lease != null)
-                    lock (_rtxGuardGate)
-                        if (_rtxGuardActive) TryStopGuardServices();
-            }
+                lock (_rtxGuardGate)
+                    if (_rtxGuardActive) TryStopGuardServices();
 
             _rtxLuids ??= RtxGuard.NvidiaAdapterLuids();
             if (_rtxLuids.Count == 0) return;

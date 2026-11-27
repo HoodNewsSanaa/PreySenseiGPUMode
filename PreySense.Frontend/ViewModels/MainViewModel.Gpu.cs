@@ -246,6 +246,13 @@ namespace PreySense.Frontend.ViewModels
                 if (_hw is ProductionHardwareService)
                     resumedDisplayService = await Task.Run(ResumeNvidiaDisplayServiceForSwitch);
                 var current = await Task.Run(() => _hw.IsDdsAvailable ? _hw.GetDdsStatus() : null);
+                // iGPU Only fork: when the RTX is asleep, NVIDIA's display API fails until the RTX has woken up
+                // (about a second). Retry before giving up, so a tile click on a sleeping RTX still works.
+                for (int attempt = 0; current?.IsSupported != true && attempt < 8; attempt++)
+                {
+                    await Task.Delay(500);
+                    current = await Task.Run(() => _hw.IsDdsAvailable ? _hw.GetDdsStatus() : null);
+                }
                 if (current?.IsSupported != true)
                 {
                     DiagnosticMessage = "NVIDIA Advanced Optimus is not available.";
