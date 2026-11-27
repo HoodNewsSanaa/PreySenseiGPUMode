@@ -120,6 +120,8 @@
                                 Click="BtnOpenPowerDiagnostics_Click"/>
                             <controls:SettingActionRow x:Name="RowBatteryWidget" Title="Battery widget" ActionText="Show / hide"
                                 Click="BtnBatteryWidget_Click"/>
+                            <controls:SettingActionRow x:Name="RowRtxGuardUndo" Title="Apps moved by RTX guard" ActionText="Review"
+                                Click="BtnRtxGuardUndo_Click"/>
                             <controls:SettingActionRow x:Name="RowMoveOffRtx" Title="Move apps off the RTX" ActionText="Move"
                                 Click="BtnMoveOffRtx_Click"/>
                             <controls:SettingActionRow x:Name="RowForkUpdates" Title="Updates" ActionText="Check now"

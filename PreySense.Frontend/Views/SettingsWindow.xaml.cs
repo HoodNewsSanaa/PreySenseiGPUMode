@@ -61,6 +61,30 @@ namespace PreySense.Frontend.Views
             finally { App.SuppressAutoHide = previousSuppression; }
         }
 
+        private void BtnRtxGuardUndo_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is not ViewModels.MainViewModel vm) return;
+            bool previousSuppression = App.SuppressAutoHide;
+            App.SuppressAutoHide = true;
+            try
+            {
+                var apps = vm.RtxGuardMovedApps;
+                if (apps.Count == 0)
+                {
+                    ShowMoveOffRtxMessage(Services.LocalizationService.Translate("RTX guard hasn't moved any apps."), showCancel: false, title: "RTX guard");
+                    return;
+                }
+                string list = string.Join(", ", System.Linq.Enumerable.Select(apps, System.IO.Path.GetFileNameWithoutExtension));
+                string question = Services.LocalizationService.Format(
+                    "RTX guard set these apps to Power saving in Windows' graphics settings: {0}. Give them back their previous setting?", list);
+                if (!ShowMoveOffRtxMessage(question, showCancel: true, confirm: "Restore", title: "RTX guard")) return;
+                int count = vm.UndoRtxGuardMovedApps();
+                ShowMoveOffRtxMessage(Services.LocalizationService.Format("Done: {0} apps restored.", count), showCancel: false, title: "RTX guard");
+            }
+            catch (System.Exception ex) { PreySense.AppLogger.Error($"RTX guard undo failed: {ex}"); }
+            finally { App.SuppressAutoHide = previousSuppression; }
+        }
+
         private void BtnBatteryWidget_Click(object sender, RoutedEventArgs e)
         {
             try { BatteryWidgetWindow.Toggle(); }
@@ -91,15 +115,15 @@ namespace PreySense.Frontend.Views
             finally { App.SuppressAutoHide = previousSuppression; }
         }
 
-        private bool ShowMoveOffRtxMessage(string message, bool showCancel)
+        private bool ShowMoveOffRtxMessage(string message, bool showCancel, string confirm = "Move", string title = "Move apps off the RTX")
         {
             var dialog = new CustomModalDialog
             {
                 Owner = this,
-                Title = "PreySense — Move apps off the RTX",
-                HeaderSubtitle = " — Move apps off the RTX",
+                Title = "PreySense — " + Services.LocalizationService.Translate(title),
+                HeaderSubtitle = " — " + Services.LocalizationService.Translate(title),
                 Message = Services.LocalizationService.Translate(message),
-                ConfirmText = Services.LocalizationService.Translate(showCancel ? "Move" : "OK"),
+                ConfirmText = Services.LocalizationService.Translate(showCancel ? confirm : "OK"),
                 ShowCancelButton = showCancel
             };
             if (showCancel) dialog.CancelText = Services.LocalizationService.Translate("Cancel");

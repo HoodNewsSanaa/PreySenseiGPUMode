@@ -48,6 +48,7 @@ namespace PreySense.Frontend.Views
             DropdownModeEpp.SelectionChanged += ModeEppDropdown_Changed;
             DropdownModeScheduling.SelectionChanged += ModeSchedulingDropdown_Changed;
             DropdownModeKeyboardLighting.SelectionChanged += ModeKeyboardLightingDropdown_Changed;
+            DropdownModeRtxGuard.SelectionChanged += ModeRtxGuardDropdown_Changed;
             Closed += (_, _) =>
             {
                 DropdownModeProchot.SelectionChanged -= ModeProchotDropdown_Changed;
@@ -61,6 +62,7 @@ namespace PreySense.Frontend.Views
                 DropdownModeEpp.SelectionChanged -= ModeEppDropdown_Changed;
                 DropdownModeScheduling.SelectionChanged -= ModeSchedulingDropdown_Changed;
                 DropdownModeKeyboardLighting.SelectionChanged -= ModeKeyboardLightingDropdown_Changed;
+                DropdownModeRtxGuard.SelectionChanged -= ModeRtxGuardDropdown_Changed;
                 _verificationTimer.Stop();
                 if (DataContext is MainViewModel vm)
                     vm.PropertyChanged -= OnTuningVmPropertyChanged;
@@ -765,6 +767,19 @@ namespace PreySense.Frontend.Views
                 DropdownModeKeyboardLighting.Items.Add(Services.LocalizationService.Translate("Off"));
             }
             DropdownModeKeyboardLighting.SelectedIndex = vm.KeyboardLightingOffForModeIndex(_selectedModeIndex) ? 1 : 0;
+
+            if (DropdownModeRtxGuard.Items.Count == 0)
+            {
+                DropdownModeRtxGuard.Items.Add(Services.LocalizationService.Translate("Off"));
+                DropdownModeRtxGuard.Items.Add(Services.LocalizationService.Translate("On: keep the RTX asleep"));
+            }
+            DropdownModeRtxGuard.SelectedIndex = vm.RtxGuardForModeIndex(_selectedModeIndex) ? 1 : 0;
+        }
+
+        private void ModeRtxGuardDropdown_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (_isUpdatingUi || DataContext is not MainViewModel vm || DropdownModeRtxGuard.SelectedIndex < 0) return;
+            vm.SetRtxGuardForModeIndex(_selectedModeIndex, DropdownModeRtxGuard.SelectedIndex == 1);
         }
 
         /// <summary>EPP choices in percent; -1 = leave Windows' setting.</summary>

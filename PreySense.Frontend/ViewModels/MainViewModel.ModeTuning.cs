@@ -74,6 +74,7 @@ public partial class MainViewModel
         ApplyPhysxForMode(mode);
         ApplyProcessorPolicyForMode(mode);
         ApplyKeyboardLightingForMode(mode);
+        ApplyRtxGuardForMode(mode);
         if (!IsModeCpuBoostTuningEnabled(mode)) return true;
         int boost = CpuBoostModeForMode(mode);
         if (_dispatcher == null || _dispatcher.CheckAccess()) CpuBoostMode = boost;
@@ -95,6 +96,7 @@ public partial class MainViewModel
             ApplyPhysxForMode(mode);
             ApplyProcessorPolicyForMode(mode);
             ApplyKeyboardLightingForMode(mode);
+            ApplyRtxGuardForMode(mode);
         });
         if (!IsModeCpuBoostTuningEnabled(mode)) return true;
         return await WriteCpuBoostAsync(mode);

@@ -77,6 +77,14 @@ disabling it in Device Manager). No app can use it, so it stays fully powered do
   lighting back when you switch to a mode set to "Your lighting". Your saved lighting is never changed. The Fn
   brightness keys may still light the keyboard briefly in an "Off" mode.
 
+- **RTX guard**: keeps things from waking the RTX in that mode (Optimus). It stops NVIDIA's polling services
+  (Display Container, NVIDIA app container, FrameView; NVIDIA Control Panel and the NVIDIA app won't open
+  meanwhile) and starts them again when you switch to a mode without the guard or quit PreySense. Every 2 seconds
+  it checks Windows' cached RTX state; when the RTX is awake it reads Windows' GPU counters to see which apps are
+  on it and sets each to "Power saving" in Windows' graphics settings, so it won't use the RTX again after it
+  restarts. Apps that already have a graphics choice of yours, Windows' own apps and NVIDIA's are never changed.
+  Settings → "Apps moved by RTX guard" lists them and gives them their old setting back.
+
 All of these save and apply as soon as you pick a value.
 
 **Battery widget** (Settings, temporary): a small always-on-top readout of battery drain (now and 30-second

@@ -98,6 +98,11 @@
                 "title": "Keyboard lighting off",
                 "description": "iGPU Only fork: true turns the keyboard and lid lighting off while this mode is active."
               },
+              "RtxGuard": {
+                "type": ["boolean", "null"],
+                "title": "RTX guard",
+                "description": "iGPU Only fork: true stops NVIDIA's polling services in this mode and sets apps found on the RTX to Power saving in Windows' graphics settings."
+              },
               "GpuPowerWatts": { "type": ["integer", "null"], "minimum": 5, "maximum": 999 },
               "ApplyCpuBoost": { "type": "boolean", "default": false },
               "CpuBoostMode": { "type": ["integer", "null"], "minimum": 0, "maximum": 6 }

@@ -426,6 +426,57 @@ public class ForkModeExtrasTests
     }
 
     [TestMethod]
+    public void RtxGuard_StopsServicesInGuardedModeAndStartsThemAfter()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "PreySenseRtxGuard-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var store = new ConfigurationService(Path.Combine(folder, "preysense.json"));
+            store.Update(config => config.Tuning.Eco.RtxGuard = true);
+            var vm = (MainViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
+            vm.TuningConfigurationStore = store;
+            var started = new List<string>();
+            vm.RtxGuardServiceStopper = names => new List<string> { "NVDisplay.ContainerLocalSystem" };
+            vm.RtxGuardServiceStarter = names => started.AddRange(names);
+
+            vm.ApplyRtxGuardForMode(4); // not guarded, nothing stopped: nothing to do
+            Assert.IsFalse(vm.IsRtxGuardActive);
+            Assert.IsEmpty(started);
+
+            vm.ApplyRtxGuardForMode(6); // Eco: guard on
+            Assert.IsTrue(vm.IsRtxGuardActive);
+            CollectionAssert.AreEqual(new[] { "NVDisplay.ContainerLocalSystem" }, store.GetCurrent().Tuning.RtxGuardStoppedServices);
+
+            vm.ApplyRtxGuardForMode(4); // guard off: services back
+            Assert.IsFalse(vm.IsRtxGuardActive);
+            CollectionAssert.AreEqual(new[] { "NVDisplay.ContainerLocalSystem" }, started);
+            Assert.IsEmpty(store.GetCurrent().Tuning.RtxGuardStoppedServices);
+        }
+        finally { Directory.Delete(folder, true); }
+    }
+
+    [TestMethod]
+    public void RtxGuard_ParsesCountersAndPicksOnlyUserApps()
+    {
+        Assert.IsTrue(PreySense.Gpu.RtxGuard.TryParseCounterInstance(
+            "pid_1234_luid_0x00000000_0x0000D1F2_phys_0_eng_0_engtype_3D", out int pid, out string luid));
+        Assert.AreEqual(1234, pid);
+        Assert.AreEqual("0x00000000_0x0000D1F2", luid);
+        Assert.IsTrue(PreySense.Gpu.RtxGuard.TryParseCounterInstance("pid_8_luid_0x00000001_0x00000002_phys_0", out _, out luid));
+        Assert.AreEqual("0x00000001_0x00000002", luid);
+        Assert.IsFalse(PreySense.Gpu.RtxGuard.TryParseCounterInstance("luid_0x0_0x1_phys_0", out _, out _));
+        Assert.AreEqual("0x00000001_0x0000D1F2", PreySense.Gpu.RtxGuard.FormatLuid((1L << 32) | 0xD1F2));
+
+        const string win = @"C:\Windows\";
+        Assert.IsTrue(MainViewModel.IsMovableApp(@"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe", win));
+        Assert.IsFalse(MainViewModel.IsMovableApp(@"C:\Windows\System32\dwm.exe", win));
+        Assert.IsFalse(MainViewModel.IsMovableApp(@"C:\Program Files\NVIDIA Corporation\NVIDIA app\CEF\NVIDIA Overlay.exe", win));
+        Assert.IsFalse(MainViewModel.IsMovableApp(@"C:\Users\x\Desktop\PreySense\PreySense.exe", win));
+        Assert.IsFalse(MainViewModel.IsMovableApp(null, win));
+    }
+
+    [TestMethod]
     public void Updater_ParsesForkTagsAndComparesBuilds()
     {
         Assert.AreEqual((new Version(3, 1, 3), 7), PreySense.Frontend.Services.ForkUpdateService.ParseTag("igpu-3.1.3-7"));

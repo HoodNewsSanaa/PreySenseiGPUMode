@@ -279,6 +279,14 @@ namespace PreySense.Core.Configuration
         [JsonPropertyOrder(15)]
         public Dictionary<string, HeldPlanSettingState> HeldPlanSettings { get; set; } = new();
 
+        /// <summary>iGPU Only fork: NVIDIA services the RTX guard stopped, to start again when it turns off.</summary>
+        [JsonPropertyOrder(15)]
+        public List<string> RtxGuardStoppedServices { get; set; } = new();
+
+        /// <summary>iGPU Only fork: apps the RTX guard set to "Power saving" in Windows' graphics settings.</summary>
+        [JsonPropertyOrder(15)]
+        public List<string> RtxGuardMovedApps { get; set; } = new();
+
         /// <summary>Driver-read factory profiles, saved only after all five modes were captured.</summary>
         [JsonPropertyOrder(14)]
         public Dictionary<string, ModeTuningConfig> FactoryDefaults { get; set; } = new();
@@ -359,6 +367,8 @@ namespace PreySense.Core.Configuration
             OriginalPhysxAuto = OriginalPhysxAuto,
             OriginalPhysxGpuId = OriginalPhysxGpuId,
             HeldPlanSettings = HeldPlanSettings?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.Clone()!)!,
+            RtxGuardStoppedServices = RtxGuardStoppedServices?.ToList()!,
+            RtxGuardMovedApps = RtxGuardMovedApps?.ToList()!,
             FactoryDefaults = FactoryDefaults?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.Clone()!)!,
             Quiet = Quiet?.Clone()!,
             Eco = Eco?.Clone()!,
@@ -539,6 +549,13 @@ namespace PreySense.Core.Configuration
         /// <summary>iGPU Only fork: true turns the keyboard and lid lighting off while this mode is active.</summary>
         [JsonPropertyOrder(24)]
         public bool? KeyboardLightingOff { get; set; }
+
+        /// <summary>
+        /// iGPU Only fork: true keeps things from waking the RTX in this mode: NVIDIA's polling services are stopped,
+        /// and apps found on the RTX are set to "Power saving" in Windows' graphics settings.
+        /// </summary>
+        [JsonPropertyOrder(25)]
+        public bool? RtxGuard { get; set; }
     }
 
     /// <summary>iGPU Only fork: a power plan value PreySense holds, and Windows' AC/DC values from before.</summary>

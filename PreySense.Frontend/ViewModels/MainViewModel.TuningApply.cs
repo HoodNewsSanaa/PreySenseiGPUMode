@@ -287,6 +287,7 @@ public partial class MainViewModel
                 profile.EppPercent = null;
                 profile.CoreSchedulingPolicy = null;
                 profile.KeyboardLightingOff = null;
+                profile.RtxGuard = null;
             }
             cfg.Tuning.ProchotOffsetCelsius = null;
             cfg.Tuning.ApplyProchotOffset = false;

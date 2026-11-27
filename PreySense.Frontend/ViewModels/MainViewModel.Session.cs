@@ -299,6 +299,7 @@ namespace PreySense.Frontend.ViewModels
         private void OnSessionEnded(object sender, SessionEndedEventArgs e)
         {
             RestoreDiscreteGpuForExit("shutdown");
+            StopRtxGuardForExit();
         }
     }
 }

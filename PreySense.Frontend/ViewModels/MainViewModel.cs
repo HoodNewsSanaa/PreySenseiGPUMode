@@ -349,6 +349,7 @@ namespace PreySense.Frontend.ViewModels
             StopGameMode();
             PersistSessionSettings(includeLighting: false);
             RestoreDiscreteGpuForExit("quit");
+            StopRtxGuardForExit();
             SetMainWindowTelemetryVisible(false);
             // Capture the last edit, including a mode still waiting on the trailing apply.
             // Only explicit shutdown waits: the worker never awaits the dispatcher.
