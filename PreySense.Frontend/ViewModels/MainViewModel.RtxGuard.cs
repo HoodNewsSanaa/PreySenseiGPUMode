@@ -253,7 +253,9 @@ public partial class MainViewModel
             var pids = RtxGuard.ProcessesOnAdapters(_rtxLuids);
             if (pids is null || pids.Count == 0) return;
             MoveAppsToIntegrated(pids);
-            if (_autoMoveActive) MaybeRestartRtxForMove(pids);
+            // No automatic RTX restart: restarting the RTX on this laptop can break the screen's brightness control
+            // until Windows restarts. Apps are set to Power saving above and move at their next start; the RTX can
+            // still be restarted by hand from Settings (Move apps off the RTX).
         }
         catch (Exception ex)
         {

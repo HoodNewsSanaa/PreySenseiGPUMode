@@ -95,7 +95,7 @@ public partial class MainViewModel
                     Title = "PreySense — " + LocalizationService.Translate("RTX still awake"),
                     HeaderSubtitle = " — " + LocalizationService.Translate("RTX still awake"),
                     Message = LocalizationService.Translate(
-                        "The RTX is staying awake although no app is using it. Windows' desktop (dwm) is probably still holding memory on it from when the screen was on the RTX. Restart the RTX so it can sleep? Your screen stays on.") ,
+                        "The RTX is staying awake although no app is using it. Windows' desktop (dwm) is probably still holding memory on it from when the screen was on the RTX. Restart the RTX so it can sleep? Your screen stays on, but on some laptops the brightness keys stop working until Windows restarts.") ,
                     ConfirmText = LocalizationService.Translate("Restart RTX"),
                     CancelText = LocalizationService.Translate("Not now"),
                     ShowCancelButton = true

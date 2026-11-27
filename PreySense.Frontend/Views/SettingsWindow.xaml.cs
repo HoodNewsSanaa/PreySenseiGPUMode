@@ -105,7 +105,7 @@ namespace PreySense.Frontend.Views
                     return;
                 }
                 string question = Services.LocalizationService.Format(
-                    "These apps are using the RTX: {0}. PreySense will restart the RTX so they move to the integrated GPU. Most apps carry on; games and some apps may close, so save your work first. Continue?",
+                    "These apps are using the RTX: {0}. PreySense will restart the RTX so they move to the integrated GPU. Most apps carry on; games and some apps may close, so save your work first. On some laptops the screen brightness keys stop working until Windows restarts. Continue?",
                     string.Join(", ", apps));
                 if (!ShowMoveOffRtxMessage(question, showCancel: true)) return;
                 string result = await vm.MoveAppsOffDiscreteGpuAsync();

@@ -48,10 +48,10 @@ automatically) to keep the RTX asleep on battery, and **Advanced Optimus** when 
   switched off it waits and sends it when the RTX comes back.
 
   **Automatic moving:** in every mode whose preferred GPU is Integrated graphics, PreySense watches the RTX the
-  same way the RTX guard does (without stopping any services). Whenever anything holds the RTX (apps, games, or
-  Windows' own desktop compositor), the apps are set to "Power saving" in Windows' graphics settings and the RTX
-  is restarted so everything lets go of it, at most once a minute and never while the RTX drives the screen.
-  A game running on the RTX will lose it (and may close), so use a mode with another preferred GPU for gaming.
+  same way the RTX guard does (without stopping any services) and sets apps it finds on the RTX to "Power saving"
+  in Windows' graphics settings, so they use Intel from their next start. It does not restart the RTX by itself:
+  on this laptop a restart of the RTX can break the screen's brightness control until Windows restarts. Use
+  Settings → Move apps off the RTX when you want them moved right away.
 
 - **PhysX processor**: NVIDIA's PhysX processor for that mode: "CPU", or "NVIDIA default" to leave NVIDIA's own
   setting (normally Auto-select). It's a registry setting that PhysX games read when they start, so changing it
