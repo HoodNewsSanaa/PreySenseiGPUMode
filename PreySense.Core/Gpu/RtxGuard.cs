@@ -26,7 +26,8 @@ public static class RtxGuard
     /// <summary>Stops the given services; returns the ones that were running (so they can be started again).</summary>
     public static List<string> StopServices(IEnumerable<string> names)
     {
-        var stopped = new List<string>();
+        // Ask all of them to stop first, then wait (some, like the NVIDIA app container, take a while).
+        var stopping = new List<string>();
         foreach (string name in names)
         {
             try
@@ -34,14 +35,28 @@ public static class RtxGuard
                 using var sc = new ServiceController(name);
                 if (sc.Status is ServiceControllerStatus.Stopped or ServiceControllerStatus.StopPending) continue;
                 sc.Stop();
-                sc.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(10));
-                stopped.Add(name);
-                AppLogger.Log($"[RTX guard] Stopped {name}.");
+                stopping.Add(name);
             }
             catch (InvalidOperationException) { /* not installed, or can't be stopped */ }
             catch (Exception ex) { AppLogger.Error($"[RTX guard] Could not stop {name}: {ex.Message}"); }
         }
-        return stopped;
+        DateTime deadline = DateTime.UtcNow.AddSeconds(30);
+        foreach (string name in stopping)
+        {
+            try
+            {
+                using var sc = new ServiceController(name);
+                var left = deadline - DateTime.UtcNow;
+                if (left > TimeSpan.Zero) sc.WaitForStatus(ServiceControllerStatus.Stopped, left);
+                AppLogger.Log($"[RTX guard] Stopped {name}.");
+            }
+            catch (System.ServiceProcess.TimeoutException)
+            {
+                AppLogger.Log($"[RTX guard] {name} is still stopping.");
+            }
+            catch (Exception ex) { AppLogger.Error($"[RTX guard] {name}: {ex.Message}"); }
+        }
+        return stopping; // a slow stop still counts, so the service is started again later
     }
 
     /// <summary>True when any of the given services is running again (for example restarted by its recovery settings).</summary>

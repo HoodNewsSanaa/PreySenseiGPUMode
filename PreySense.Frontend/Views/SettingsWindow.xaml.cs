@@ -117,9 +117,12 @@ namespace PreySense.Frontend.Views
 
         private bool ShowMoveOffRtxMessage(string message, bool showCancel, string confirm = "Move", string title = "Move apps off the RTX")
         {
+            // The Settings window may have been closed while the RTX was restarting.
+            Window? owner = IsLoaded && IsVisible ? this
+                : Application.Current?.MainWindow is { IsVisible: true } main ? main : null;
             var dialog = new CustomModalDialog
             {
-                Owner = this,
+                Owner = owner,
                 Title = "PreySense — " + Services.LocalizationService.Translate(title),
                 HeaderSubtitle = " — " + Services.LocalizationService.Translate(title),
                 Message = Services.LocalizationService.Translate(message),

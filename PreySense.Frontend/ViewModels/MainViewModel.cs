@@ -264,7 +264,7 @@ namespace PreySense.Frontend.ViewModels
                 try
                 {
                     using var gpuLease = HardwareOperationGate.TryEnterTelemetry();
-                    if (gpuLease != null && _hw.IsDdsAvailable)
+                    if (gpuLease != null && _hw.IsDdsAvailable && !IsRtxAsleepOrOff())
                     {
                         liveDdsStatus = _hw.GetDdsStatus();
                     }

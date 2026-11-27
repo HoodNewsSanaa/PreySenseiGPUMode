@@ -24,6 +24,15 @@ public partial class MainViewModel
     private bool _rtxGuardActive;
     private HashSet<string>? _rtxLuids;
     private int _rtxGuardChecking;
+    private bool _rtxGuardSawAsleep = true;
+    private DateTime _rtxGuardLastLook = DateTime.MinValue;
+
+    /// <summary>
+    /// Reading the GPU counters touches the RTX, and NVIDIA's driver only powers it down after about 5 seconds
+    /// without any activity. So the guard looks once just after each wake, then at most every 30 seconds while
+    /// the RTX stays awake; checking more often would itself keep it awake.
+    /// </summary>
+    private static readonly TimeSpan RtxGuardLookInterval = TimeSpan.FromSeconds(30);
 
     /// <summary>Test seams.</summary>
     internal Func<IEnumerable<string>, List<string>>? RtxGuardServiceStopper { get; set; }
@@ -112,7 +121,21 @@ public partial class MainViewModel
         {
             if (!_rtxGuardActive || _disposed) return;
             PreySense.Helpers.DeviceHelper.InvalidateDisplayDevicePowerStateCache();
-            if (PreySense.Helpers.DeviceHelper.GetDisplayDevicePowerState("VEN_10DE") != 1) return; // asleep or off
+            if (PreySense.Helpers.DeviceHelper.GetDisplayDevicePowerState("VEN_10DE") != 1)
+            {
+                _rtxGuardSawAsleep = true; // asleep or off: nothing to do
+                return;
+            }
+            DateTime now = DateTime.UtcNow;
+            bool justWoke = _rtxGuardSawAsleep;
+            _rtxGuardSawAsleep = false;
+            if (!justWoke && now - _rtxGuardLastLook < RtxGuardLookInterval) return;
+            if (justWoke)
+            {
+                // Let the app that woke it get going, so it shows up in the counters.
+                Thread.Sleep(1000);
+            }
+            _rtxGuardLastLook = DateTime.UtcNow;
 
             // Awake: services that restarted themselves go again.
             if (RtxGuard.AnyRunning(RtxGuard.PollingServices))

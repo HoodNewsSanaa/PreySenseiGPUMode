@@ -100,7 +100,9 @@ namespace PreySense.Frontend.ViewModels
                 try { biosDiscrete = _hw.IsBiosDiscreteGpuActive; } catch { }
 
                 DdsStatus? dds = null;
-                if (!biosDiscrete && _hw.IsDdsAvailable)
+                // iGPU Only fork: NVIDIA's display-switch API wakes the RTX. An RTX that is asleep or switched off
+                // can't be driving the screen, so it isn't asked; the last known state stays on screen.
+                if (!biosDiscrete && _hw.IsDdsAvailable && !IsRtxAsleepOrOff())
                 {
                     try { dds = _hw.GetDdsStatus(); }
                     catch (Exception ex) { AppLogger.Error($"GPU display status read failed: {ex.Message}"); }

@@ -15,6 +15,21 @@ namespace PreySense.Frontend.ViewModels;
 public partial class MainViewModel
 {
     /// <summary>
+    /// True when Windows reports the RTX asleep (D1–D3) or switched off. Reading this never wakes it, unlike
+    /// NVIDIA's own APIs, so callers use it to leave a sleeping RTX alone.
+    /// </summary>
+    internal bool IsRtxAsleepOrOff()
+    {
+        try
+        {
+            if (_igpuOnlyRtxOff) return true;
+            if (_hw.GetDiscreteGpuPowerState() is >= 2 and <= 4) return true;
+            return _hw.IsDiscreteGpuDisabled() == true;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>
     /// Checks whether the RTX can be restarted and which apps use it. Problem is a user-facing reason when it
     /// can't (or needn't) be done; otherwise Apps lists the apps that would be moved.
     /// </summary>
