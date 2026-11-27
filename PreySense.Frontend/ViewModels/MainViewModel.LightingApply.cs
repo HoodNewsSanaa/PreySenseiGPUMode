@@ -10,7 +10,7 @@ public partial class MainViewModel
     [Flags]
     internal enum LightingWork { None = 0, Keyboard = 1, Cover = 2, Save = 4, Brightness = 8, Frame = 16 }
     internal sealed record LightingRequest(KeyboardLightingConfig Keyboard, CoverLightingConfig Cover, LightingWork Work,
-        int? SavedKeyboardBrightness = null);
+        int? SavedKeyboardBrightness = null, bool LightsOff = false);
 
     internal static LightingRequest MergeLightingRequests(LightingRequest pending, LightingRequest latest)
     {
@@ -60,7 +60,7 @@ public partial class MainViewModel
             {
                 Enabled = CoverBrightness > 0, Mode = CoverLightingMode, ColorHex = CoverHexColor,
                 Brightness = CoverBrightness, Speed = CoverSpeed, SyncWithKeyboard = IsCoverSyncWithKeyboard
-            }, work, SavedKeyboardBrightness: RgbBrightness);
+            }, work, SavedKeyboardBrightness: RgbBrightness, LightsOff: _modeLightingOff);
         }
         finally { _isApplyingLighting = false; }
     }
@@ -83,6 +83,8 @@ public partial class MainViewModel
             || keyboard.EffectTag.Equals("HW:Mode", StringComparison.OrdinalIgnoreCase);
         var sharedLighting = ConfigurationService.Instance.GetCurrent().Lighting;
         byte brightness = (byte)Math.Clamp(keyboardMode ? sharedLighting.ModeBrightness : keyboard.Brightness, 0, 100);
+        // iGPU Only fork: a mode with "Keyboard lighting off" shows nothing; the saved settings stay as they are.
+        if (request.LightsOff) brightness = 0;
         bool fullKeyboard = request.Work.HasFlag(LightingWork.Keyboard);
         if (fullKeyboard)
         {
@@ -92,7 +94,7 @@ public partial class MainViewModel
             if (_hw is ProductionHardwareService prod)
             {
                 var engine = prod.LightingEngine;
-                if (!dynamic) engine.StopAndWait();
+                if (!dynamic || request.LightsOff) engine.StopAndWait();
                 else if (Enum.TryParse<CustomEffectMode>(keyboard.EffectTag[4..], out var effect))
                 {
                     engine.SetIdleTimeoutSeconds(keyboard.BacklightTimeoutSeconds);
@@ -118,7 +120,7 @@ public partial class MainViewModel
                     ColorTranslator.FromHtml(z1), ColorTranslator.FromHtml(z2),
                     ColorTranslator.FromHtml(z3), ColorTranslator.FromHtml(z4), brightness);
             }
-            else if (!dynamic)
+            else if (!dynamic || request.LightsOff)
             {
                 if (keyboard.EffectTag.StartsWith("HW:", StringComparison.Ordinal) &&
                     int.TryParse(keyboard.EffectTag.AsSpan(3), out int mode) && mode != 0)
@@ -150,7 +152,7 @@ public partial class MainViewModel
                 (keyboard.EffectTag.Equals("MODE", StringComparison.OrdinalIgnoreCase)
                 || keyboard.EffectTag.Equals("HW:Mode", StringComparison.OrdinalIgnoreCase));
             bool modeCover = syncKeyboardMode || cover.Mode == 4;
-            bool coverEnabled = modeCover ? sharedLighting.ModeBrightness > 0 : cover.Enabled;
+            bool coverEnabled = !request.LightsOff && (modeCover ? sharedLighting.ModeBrightness > 0 : cover.Enabled);
             int mode = !coverEnabled ? 0 : cover.SyncWithKeyboard
                 ? SyncedCoverModeFromKeyboardEffect(keyboard.EffectTag)
                 : cover.Mode == 4 ? 1 : cover.Mode;

@@ -67,6 +67,16 @@ disabling it in Device Manager). No app can use it, so it stays fully powered do
   setting (normally Auto-select). It's a registry setting that PhysX games read when they start, so changing it
   never wakes the RTX. NVIDIA's own values are saved the first time and written back afterwards.
 
+- **Energy preference (EPP)**: how eagerly the CPU raises its clocks, from 0% (max performance) to 100% (max
+  efficiency), for both core types. Higher values keep everyday bursts at low clocks. 70–85% suits battery.
+
+- **Core scheduling**: "Prefer E-cores" sends work to the efficient cores first; "E-cores only" keeps threads on
+  them. Both are Windows' own scheduling policies.
+
+- **Keyboard lighting**: "Off" turns the keyboard and lid lighting off while the mode is active and brings your
+  lighting back when you switch to a mode set to "Your lighting". Your saved lighting is never changed. The Fn
+  brightness keys may still light the keyboard briefly in an "Off" mode.
+
 All of these save and apply as soon as you pick a value.
 
 **Battery widget** (Settings, temporary): a small always-on-top readout of battery drain (now and 30-second

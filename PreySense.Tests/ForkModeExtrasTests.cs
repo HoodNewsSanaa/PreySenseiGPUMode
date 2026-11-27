@@ -383,6 +383,49 @@ public class ForkModeExtrasTests
     }
 
     [TestMethod]
+    public void ProcessorPolicy_WritesBothCoreTypesAndRestoresWindowsValues()
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "PreySensePolicy-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var store = new ConfigurationService(Path.Combine(folder, "preysense.json"));
+            store.Update(config =>
+            {
+                config.Tuning.Eco.EppPercent = 80;
+                config.Tuning.Eco.CoreSchedulingPolicy = PreySense.Mode.ProcessorPolicySettings.SchedulingEfficientOnly;
+                config.Tuning.Eco.KeyboardLightingOff = true;
+            });
+            var vm = (MainViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
+            vm.TuningConfigurationStore = store;
+            var writes = new List<(string Name, int Value)>();
+            var restores = new List<(string Name, int? Ac, int? Dc)>();
+            vm.PlanSettingReader = (setting, dc) => dc ? 50 : 33;
+            vm.PlanSettingWriter = (setting, value) => { writes.Add((setting.Name, value)); return true; };
+            vm.PlanSettingRestorer = (setting, ac, dc) => { restores.Add((setting.Name, ac, dc)); return true; };
+
+            vm.ApplyProcessorPolicyForMode(6); // Eco
+            Assert.HasCount(4, writes);
+            CollectionAssert.AreEquivalent(new[] { 80, 80, 3, 3 }, writes.Select(w => w.Value).ToArray());
+            Assert.HasCount(4, store.GetCurrent().Tuning.HeldPlanSettings);
+
+            vm.ApplyProcessorPolicyForMode(6); // same values: nothing new written
+            Assert.HasCount(4, writes);
+
+            vm.ApplyProcessorPolicyForMode(4); // Performance: Windows' values back
+            Assert.HasCount(4, restores);
+            Assert.IsTrue(restores.All(r => r.Ac == 33 && r.Dc == 50));
+            Assert.IsEmpty(store.GetCurrent().Tuning.HeldPlanSettings);
+
+            vm.ApplyKeyboardLightingForMode(6);
+            Assert.IsTrue(vm.IsModeLightingOff);
+            vm.ApplyKeyboardLightingForMode(4);
+            Assert.IsFalse(vm.IsModeLightingOff);
+        }
+        finally { Directory.Delete(folder, true); }
+    }
+
+    [TestMethod]
     public void Updater_ParsesForkTagsAndComparesBuilds()
     {
         Assert.AreEqual((new Version(3, 1, 3), 7), PreySense.Frontend.Services.ForkUpdateService.ParseTag("igpu-3.1.3-7"));

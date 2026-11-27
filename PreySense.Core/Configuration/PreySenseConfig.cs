@@ -272,6 +272,13 @@ namespace PreySense.Core.Configuration
         [JsonPropertyOrder(15)]
         public long? OriginalPhysxGpuId { get; set; }
 
+        /// <summary>
+        /// iGPU Only fork: Windows power plan settings PreySense currently holds for a mode (energy performance
+        /// preference, core scheduling), keyed by setting GUID, with Windows' values from before the change.
+        /// </summary>
+        [JsonPropertyOrder(15)]
+        public Dictionary<string, HeldPlanSettingState> HeldPlanSettings { get; set; } = new();
+
         /// <summary>Driver-read factory profiles, saved only after all five modes were captured.</summary>
         [JsonPropertyOrder(14)]
         public Dictionary<string, ModeTuningConfig> FactoryDefaults { get; set; } = new();
@@ -351,6 +358,7 @@ namespace PreySense.Core.Configuration
             LastAppliedPhysxProcessor = LastAppliedPhysxProcessor,
             OriginalPhysxAuto = OriginalPhysxAuto,
             OriginalPhysxGpuId = OriginalPhysxGpuId,
+            HeldPlanSettings = HeldPlanSettings?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.Clone()!)!,
             FactoryDefaults = FactoryDefaults?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.Clone()!)!,
             Quiet = Quiet?.Clone()!,
             Eco = Eco?.Clone()!,
@@ -513,6 +521,34 @@ namespace PreySense.Core.Configuration
         /// </summary>
         [JsonPropertyOrder(21)]
         public int? PhysxProcessor { get; set; }
+
+        /// <summary>
+        /// iGPU Only fork: Windows energy performance preference for this mode, 0 (performance) to 100 (efficiency),
+        /// for both core types. Null leaves Windows' own setting alone.
+        /// </summary>
+        [JsonPropertyOrder(22)]
+        public int? EppPercent { get; set; }
+
+        /// <summary>
+        /// iGPU Only fork: where Windows runs threads in this mode: 4 = prefer the E-cores, 3 = E-cores only.
+        /// Null leaves Windows' own setting alone.
+        /// </summary>
+        [JsonPropertyOrder(23)]
+        public int? CoreSchedulingPolicy { get; set; }
+
+        /// <summary>iGPU Only fork: true turns the keyboard and lid lighting off while this mode is active.</summary>
+        [JsonPropertyOrder(24)]
+        public bool? KeyboardLightingOff { get; set; }
+    }
+
+    /// <summary>iGPU Only fork: a power plan value PreySense holds, and Windows' AC/DC values from before.</summary>
+    public sealed class HeldPlanSettingState
+    {
+        public int LastApplied { get; set; }
+        public int? OriginalAc { get; set; }
+        public int? OriginalDc { get; set; }
+
+        public HeldPlanSettingState Clone() => (HeldPlanSettingState)MemberwiseClone();
     }
 
     public sealed class FanConfig

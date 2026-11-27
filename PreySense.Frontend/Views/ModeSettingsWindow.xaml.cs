@@ -45,6 +45,9 @@ namespace PreySense.Frontend.Views
             DropdownModeCpuStateE.SelectionChanged += ModeCpuStateDropdown_Changed;
             DropdownModePreferredGpu.SelectionChanged += ModePreferredGpuDropdown_Changed;
             DropdownModePhysx.SelectionChanged += ModePhysxDropdown_Changed;
+            DropdownModeEpp.SelectionChanged += ModeEppDropdown_Changed;
+            DropdownModeScheduling.SelectionChanged += ModeSchedulingDropdown_Changed;
+            DropdownModeKeyboardLighting.SelectionChanged += ModeKeyboardLightingDropdown_Changed;
             Closed += (_, _) =>
             {
                 DropdownModeProchot.SelectionChanged -= ModeProchotDropdown_Changed;
@@ -55,6 +58,9 @@ namespace PreySense.Frontend.Views
                 DropdownModeCpuStateE.SelectionChanged -= ModeCpuStateDropdown_Changed;
                 DropdownModePreferredGpu.SelectionChanged -= ModePreferredGpuDropdown_Changed;
                 DropdownModePhysx.SelectionChanged -= ModePhysxDropdown_Changed;
+                DropdownModeEpp.SelectionChanged -= ModeEppDropdown_Changed;
+                DropdownModeScheduling.SelectionChanged -= ModeSchedulingDropdown_Changed;
+                DropdownModeKeyboardLighting.SelectionChanged -= ModeKeyboardLightingDropdown_Changed;
                 _verificationTimer.Stop();
                 if (DataContext is MainViewModel vm)
                     vm.PropertyChanged -= OnTuningVmPropertyChanged;
@@ -719,6 +725,75 @@ namespace PreySense.Frontend.Views
                 DropdownModePhysx.Items.Add(Services.LocalizationService.Translate("CPU"));
             }
             DropdownModePhysx.SelectedIndex = vm.PhysxProcessorForModeIndex(_selectedModeIndex) == PreySense.Gpu.NvidiaPhysx.Cpu ? 1 : 0;
+
+            DropdownModeEpp.Items.Clear();
+            foreach (int percent in ModeEppChoices)
+                DropdownModeEpp.Items.Add(percent switch
+                {
+                    -1 => Services.LocalizationService.Translate("Windows default"),
+                    0 => Services.LocalizationService.Format("{0}% (max performance)", percent),
+                    100 => Services.LocalizationService.Format("{0}% (max efficiency)", percent),
+                    _ => Services.LocalizationService.Format("{0}%", percent)
+                });
+            int? epp = vm.EppForModeIndex(_selectedModeIndex);
+            int eppIndex = Array.IndexOf(ModeEppChoices, epp ?? -1);
+            DropdownModeEpp.Tag = null;
+            if (eppIndex < 0 && epp is int customEpp)
+            {
+                DropdownModeEpp.Items.Add(Services.LocalizationService.Format("{0}%", customEpp));
+                eppIndex = DropdownModeEpp.Items.Count - 1;
+                DropdownModeEpp.Tag = customEpp;
+            }
+            DropdownModeEpp.SelectedIndex = Math.Max(0, eppIndex);
+
+            if (DropdownModeScheduling.Items.Count == 0)
+            {
+                DropdownModeScheduling.Items.Add(Services.LocalizationService.Translate("Windows default"));
+                DropdownModeScheduling.Items.Add(Services.LocalizationService.Translate("Prefer E-cores"));
+                DropdownModeScheduling.Items.Add(Services.LocalizationService.Translate("E-cores only"));
+            }
+            DropdownModeScheduling.SelectedIndex = vm.CoreSchedulingForModeIndex(_selectedModeIndex) switch
+            {
+                PreySense.Mode.ProcessorPolicySettings.SchedulingPreferEfficient => 1,
+                PreySense.Mode.ProcessorPolicySettings.SchedulingEfficientOnly => 2,
+                _ => 0
+            };
+
+            if (DropdownModeKeyboardLighting.Items.Count == 0)
+            {
+                DropdownModeKeyboardLighting.Items.Add(Services.LocalizationService.Translate("Your lighting"));
+                DropdownModeKeyboardLighting.Items.Add(Services.LocalizationService.Translate("Off"));
+            }
+            DropdownModeKeyboardLighting.SelectedIndex = vm.KeyboardLightingOffForModeIndex(_selectedModeIndex) ? 1 : 0;
+        }
+
+        /// <summary>EPP choices in percent; -1 = leave Windows' setting.</summary>
+        internal static readonly int[] ModeEppChoices = { -1, 0, 25, 33, 50, 60, 70, 80, 85, 90, 100 };
+
+        private async void ModeEppDropdown_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (_isUpdatingUi || DataContext is not MainViewModel vm || DropdownModeEpp.SelectedIndex < 0) return;
+            int index = DropdownModeEpp.SelectedIndex;
+            int? percent = index < ModeEppChoices.Length ? ModeEppChoices[index] : DropdownModeEpp.Tag as int?;
+            await vm.SetEppForModeIndexAsync(_selectedModeIndex, percent is >= 0 ? percent : null);
+        }
+
+        private async void ModeSchedulingDropdown_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (_isUpdatingUi || DataContext is not MainViewModel vm || DropdownModeScheduling.SelectedIndex < 0) return;
+            int? policy = DropdownModeScheduling.SelectedIndex switch
+            {
+                1 => PreySense.Mode.ProcessorPolicySettings.SchedulingPreferEfficient,
+                2 => PreySense.Mode.ProcessorPolicySettings.SchedulingEfficientOnly,
+                _ => null
+            };
+            await vm.SetCoreSchedulingForModeIndexAsync(_selectedModeIndex, policy);
+        }
+
+        private void ModeKeyboardLightingDropdown_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (_isUpdatingUi || DataContext is not MainViewModel vm || DropdownModeKeyboardLighting.SelectedIndex < 0) return;
+            vm.SetKeyboardLightingOffForModeIndex(_selectedModeIndex, DropdownModeKeyboardLighting.SelectedIndex == 1);
         }
 
         private async void ModePhysxDropdown_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)

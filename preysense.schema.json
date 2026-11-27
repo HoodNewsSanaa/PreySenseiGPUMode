@@ -83,6 +83,21 @@
                 "title": "PhysX processor",
                 "description": "iGPU Only fork: 0 runs NVIDIA PhysX on the CPU in this mode. Null leaves NVIDIA's setting alone."
               },
+              "EppPercent": {
+                "type": ["integer", "null"], "minimum": 0, "maximum": 100,
+                "title": "Energy performance preference (%)",
+                "description": "iGPU Only fork: 0 favours performance, 100 favours efficiency; set for both core types in this mode. Null leaves Windows' setting alone."
+              },
+              "CoreSchedulingPolicy": {
+                "type": ["integer", "null"], "enum": [3, 4, null],
+                "title": "Core scheduling",
+                "description": "iGPU Only fork: 4 prefers the E-cores, 3 uses only the E-cores (long and short threads). Null leaves Windows' setting alone."
+              },
+              "KeyboardLightingOff": {
+                "type": ["boolean", "null"],
+                "title": "Keyboard lighting off",
+                "description": "iGPU Only fork: true turns the keyboard and lid lighting off while this mode is active."
+              },
               "GpuPowerWatts": { "type": ["integer", "null"], "minimum": 5, "maximum": 999 },
               "ApplyCpuBoost": { "type": "boolean", "default": false },
               "CpuBoostMode": { "type": ["integer", "null"], "minimum": 0, "maximum": 6 }

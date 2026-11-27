@@ -109,6 +109,12 @@
                                     AutomationProperties.AutomationId="ModePreferredGpu"/>
                                 <controls:SettingDropdownRow x:Name="DropdownModePhysx" Title="PhysX processor" DropdownMinWidth="220"
                                     AutomationProperties.AutomationId="ModePhysxProcessor"/>
+                                <controls:SettingDropdownRow x:Name="DropdownModeEpp" Title="Energy preference (EPP)" DropdownMinWidth="220"
+                                    AutomationProperties.AutomationId="ModeEpp"/>
+                                <controls:SettingDropdownRow x:Name="DropdownModeScheduling" Title="Core scheduling" DropdownMinWidth="220"
+                                    AutomationProperties.AutomationId="ModeCoreScheduling"/>
+                                <controls:SettingDropdownRow x:Name="DropdownModeKeyboardLighting" Title="Keyboard lighting" DropdownMinWidth="220"
+                                    AutomationProperties.AutomationId="ModeKeyboardLighting"/>
                                 <TextBlock x:Name="ModeExtrasNote" TextWrapping="Wrap" Margin="2,6,2,2"
                                     FontSize="{DynamicResource FontSizeBody}" Foreground="{DynamicResource TextSecondaryBrush}"
                                     Text="Saved and applied right away. The CPU frequency cap is experimental: Windows or Intel software can still lower clocks further. A sleeping RTX gets its clock limit when it next wakes up."/>

@@ -284,6 +284,9 @@ public partial class MainViewModel
                 profile.CpuMaxStateEfficientPercent = null;
                 profile.PreferredGpu = null;
                 profile.PhysxProcessor = null;
+                profile.EppPercent = null;
+                profile.CoreSchedulingPolicy = null;
+                profile.KeyboardLightingOff = null;
             }
             cfg.Tuning.ProchotOffsetCelsius = null;
             cfg.Tuning.ApplyProchotOffset = false;
