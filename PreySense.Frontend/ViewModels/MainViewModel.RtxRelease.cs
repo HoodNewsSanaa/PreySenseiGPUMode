@@ -27,7 +27,10 @@ public partial class MainViewModel
         try
         {
             var tuning = (TuningConfigurationReader?.Invoke() ?? TuningStore.GetCurrent()).Tuning;
-            if (mode != EcoMode && ProfileForMode(tuning, mode).RtxGuard != true) return;
+            var profile = ProfileForMode(tuning, mode);
+            // With Preferred GPU = Integrated graphics the watcher moves apps and restarts the RTX by itself.
+            if (profile.PreferredGpu == (int)PreySense.Gpu.NvidiaPreferredGpu.Integrated) return;
+            if (mode != EcoMode && profile.RtxGuard != true) return;
         }
         catch { return; }
         int generation = Interlocked.Increment(ref _rtxReleaseCheckGeneration);

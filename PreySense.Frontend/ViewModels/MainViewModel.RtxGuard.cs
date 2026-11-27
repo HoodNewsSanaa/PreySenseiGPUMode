@@ -40,6 +40,19 @@ public partial class MainViewModel
 
     internal bool IsRtxGuardActive => _rtxGuardActive;
 
+    /// <summary>
+    /// True while the active mode's preferred GPU is Integrated graphics: apps found on the RTX are moved off it
+    /// automatically (set to Power saving, and the RTX restarted when only everyday apps hold it).
+    /// </summary>
+    private volatile bool _autoMoveActive;
+    private DateTime _lastAutoRestart = DateTime.MinValue;
+    private static readonly TimeSpan AutoRestartMinInterval = TimeSpan.FromMinutes(5);
+
+    internal bool IsAutoMoveActive => _autoMoveActive;
+
+    /// <summary>The watcher (timer) runs for the RTX guard and for automatic moving.</summary>
+    private bool WatcherWanted => _rtxGuardActive || _autoMoveActive;
+
     internal bool RtxGuardForModeIndex(int modeIndex) => SavedTuningMode(modeIndex).RtxGuard == true;
 
     internal void SetRtxGuardForModeIndex(int modeIndex, bool enabled)
@@ -67,10 +80,18 @@ public partial class MainViewModel
                 TuningStore.Update(cfg => cfg.Tuning.RtxGuardStoppedServices?.RemoveAll(name =>
                     noLongerStopped.Contains(name, StringComparer.OrdinalIgnoreCase)));
             }
+            bool autoMove = ProfileForMode(tuning, mode).PreferredGpu == (int)NvidiaPreferredGpu.Integrated;
             lock (_rtxGuardGate)
             {
                 if (wanted && !_rtxGuardActive) StartRtxGuardLocked(mode);
                 else if (!wanted && (_rtxGuardActive || tuning.RtxGuardStoppedServices is { Count: > 0 })) StopRtxGuardLocked(mode);
+                if (autoMove != _autoMoveActive)
+                {
+                    _autoMoveActive = autoMove;
+                    _rtxGuardSawAsleep = true; // look right away if the RTX is awake now
+                    AppLogger.Log($"[RTX guard] {GetModeTitle(mode)}: automatic moving {(autoMove ? "on" : "off")}.");
+                }
+                UpdateWatcherTimerLocked();
             }
         }
         catch (Exception ex)
@@ -87,11 +108,6 @@ public partial class MainViewModel
         _rtxGuardActive = true;
         _rtxGuardServicesPending = true;
         TryStopGuardServices();
-        if (RtxGuardServiceStopper is null)
-        {
-            _rtxGuardTimer ??= new Timer(_ => RtxGuardTick(), null, Timeout.Infinite, Timeout.Infinite);
-            _rtxGuardTimer.Change(RtxGuardInterval, RtxGuardInterval);
-        }
         AppLogger.Log($"[RTX guard] {GetModeTitle(mode)}: guard on.");
     }
 
@@ -119,11 +135,22 @@ public partial class MainViewModel
         });
     }
 
+    private void UpdateWatcherTimerLocked()
+    {
+        if (RtxGuardServiceStopper is not null) return; // tests
+        if (WatcherWanted)
+        {
+            _rtxGuardTimer ??= new Timer(_ => RtxGuardTick(), null, Timeout.Infinite, Timeout.Infinite);
+            _rtxGuardTimer.Change(RtxGuardInterval, RtxGuardInterval);
+        }
+        else _rtxGuardTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+    }
+
     private void StopRtxGuardLocked(byte? mode)
     {
         _rtxGuardActive = false;
         _rtxGuardServicesPending = false;
-        _rtxGuardTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+        UpdateWatcherTimerLocked();
         var tuning = (TuningConfigurationReader?.Invoke() ?? TuningStore.GetCurrent()).Tuning;
         var services = tuning.RtxGuardStoppedServices?.ToList() ?? new List<string>();
         if (services.Count > 0)
@@ -170,9 +197,10 @@ public partial class MainViewModel
         try
         {
             Monitor.TryEnter(_rtxGuardGate, TimeSpan.FromSeconds(2), ref locked);
-            if (_rtxGuardActive || !locked)
+            if (_rtxGuardActive || _autoMoveActive || !locked)
             {
                 _rtxGuardActive = false;
+                _autoMoveActive = false;
                 _rtxGuardTimer?.Change(Timeout.Infinite, Timeout.Infinite);
                 var services = TuningStore.GetCurrent().Tuning.RtxGuardStoppedServices?.ToList();
                 if (services is { Count: > 0 })
@@ -192,9 +220,9 @@ public partial class MainViewModel
         if (Interlocked.Exchange(ref _rtxGuardChecking, 1) != 0) return;
         try
         {
-            if (!_rtxGuardActive || _disposed) return;
+            if (!WatcherWanted || _disposed) return;
             if (Volatile.Read(ref _gpuSwitchInProgress) != 0) return; // leave the GPU alone while it switches
-            if (_rtxGuardServicesPending)
+            if (_rtxGuardActive && _rtxGuardServicesPending)
                 lock (_rtxGuardGate)
                     if (_rtxGuardActive && _rtxGuardServicesPending) TryStopGuardServices();
             PreySense.Helpers.DeviceHelper.InvalidateDisplayDevicePowerStateCache();
@@ -215,15 +243,17 @@ public partial class MainViewModel
             _rtxGuardLastLook = DateTime.UtcNow;
 
             // Awake: services that restarted themselves go again (never during a GPU switch).
-            if (!_rtxGuardServicesPending && RtxGuard.AnyRunning(RtxGuard.PollingServices))
+            if (_rtxGuardActive && !_rtxGuardServicesPending && RtxGuard.AnyRunning(RtxGuard.PollingServices))
                 lock (_rtxGuardGate)
                     if (_rtxGuardActive) TryStopGuardServices();
 
-            _rtxLuids ??= RtxGuard.NvidiaAdapterLuids();
+            // Re-read every time: the RTX gets a new adapter ID whenever it is restarted (iGPU Only, Move apps).
+            _rtxLuids = RtxGuard.NvidiaAdapterLuids();
             if (_rtxLuids.Count == 0) return;
             var pids = RtxGuard.ProcessesOnAdapters(_rtxLuids);
             if (pids is null || pids.Count == 0) return;
             MoveAppsToIntegrated(pids);
+            if (_autoMoveActive) MaybeRestartRtxForMove(pids);
         }
         catch (Exception ex)
         {
@@ -266,6 +296,58 @@ public partial class MainViewModel
         if (_dispatcher is null) DiagnosticMessage = message;
         else _dispatcher.BeginInvoke(() => DiagnosticMessage = message);
     }
+
+    /// <summary>
+    /// Automatic moving: apps set to Power saving only change GPU when they restart, so the RTX is restarted
+    /// (like Move apps off the RTX) when everything holding it is an everyday app or Windows itself. Never while
+    /// the RTX drives the screen or a game or other app is on it, and at most once every 5 minutes.
+    /// </summary>
+    private void MaybeRestartRtxForMove(IEnumerable<int> pids)
+    {
+        if (DateTime.UtcNow - _lastAutoRestart < AutoRestartMinInterval) return;
+        var blockers = new List<string>();
+        foreach (int pid in pids)
+        {
+            string name;
+            try { using var p = Process.GetProcessById(pid); name = p.ProcessName; }
+            catch { continue; } // already gone
+            if (IsWindowsGpuHolder(name) || IgpuOnlyHarmlessApps.Contains(name)) continue;
+            blockers.Add(name);
+        }
+        if (blockers.Count > 0)
+        {
+            var notice = PreySense.Frontend.Services.LocalizationService.Format(
+                "{0} is using the RTX, so it stays awake until it closes.", string.Join(", ", blockers.Distinct(StringComparer.OrdinalIgnoreCase)));
+            SetDiagnosticFromAnyThread(notice);
+            return;
+        }
+        if (_dispatcher is null) return;
+        _lastAutoRestart = DateTime.UtcNow;
+        _dispatcher.BeginInvoke(async () =>
+        {
+            try
+            {
+                if (!_autoMoveActive || WantsIgpuOnly() || IsRtxAsleepOrOff()) return;
+                if (await IsDiscreteGpuDrivingScreenAsync()) return;
+                AppLogger.Log("[RTX guard] Only everyday apps or Windows hold the RTX; restarting it to move them.");
+                string result = await MoveAppsOffDiscreteGpuAsync();
+                DiagnosticMessage = PreySense.Frontend.Services.LocalizationService.Translate(result);
+            }
+            catch (Exception ex) { AppLogger.Error("[RTX guard] " + ex.Message); }
+        });
+    }
+
+    /// <summary>Windows' own processes that keep memory on a GPU (the desktop compositor and friends).</summary>
+    internal static bool IsWindowsGpuHolder(string processName) =>
+        processName.Equals("dwm", StringComparison.OrdinalIgnoreCase) ||
+        processName.Equals("csrss", StringComparison.OrdinalIgnoreCase) ||
+        processName.Equals("System", StringComparison.OrdinalIgnoreCase) ||
+        processName.Equals("ApplicationFrameHost", StringComparison.OrdinalIgnoreCase) ||
+        processName.Equals("explorer", StringComparison.OrdinalIgnoreCase) ||
+        processName.Equals("ShellExperienceHost", StringComparison.OrdinalIgnoreCase) ||
+        processName.Equals("StartMenuExperienceHost", StringComparison.OrdinalIgnoreCase) ||
+        processName.Equals("SearchHost", StringComparison.OrdinalIgnoreCase) ||
+        processName.Equals("TextInputHost", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Apps that can be moved: user programs only (not Windows' own, NVIDIA's or PreySense).</summary>
     internal static bool IsMovableApp(string? path, string windowsDir)

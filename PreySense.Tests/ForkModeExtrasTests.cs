@@ -474,6 +474,9 @@ public class ForkModeExtrasTests
         Assert.IsFalse(MainViewModel.IsMovableApp(@"C:\Program Files\NVIDIA Corporation\NVIDIA app\CEF\NVIDIA Overlay.exe", win));
         Assert.IsFalse(MainViewModel.IsMovableApp(@"C:\Users\x\Desktop\PreySense\PreySense.exe", win));
         Assert.IsFalse(MainViewModel.IsMovableApp(null, win));
+        Assert.IsTrue(MainViewModel.IsWindowsGpuHolder("dwm"));
+        Assert.IsTrue(MainViewModel.IsWindowsGpuHolder("csrss"));
+        Assert.IsFalse(MainViewModel.IsWindowsGpuHolder("brave"));
     }
 
     [TestMethod]

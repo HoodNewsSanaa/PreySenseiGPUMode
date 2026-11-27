@@ -63,6 +63,12 @@ disabling it in Device Manager). No app can use it, so it stays fully powered do
   own choice. PreySense only talks to NVIDIA's driver when the value changes, and while iGPU Only has the RTX
   switched off it waits and sends it when the RTX comes back.
 
+  **Automatic moving:** in every mode whose preferred GPU is Integrated graphics, PreySense watches the RTX the
+  same way the RTX guard does (without stopping any services). Apps it finds on the RTX are set to "Power
+  saving" in Windows' graphics settings, and when everything holding the RTX is an everyday app (browsers,
+  Discord, Steam and the like) or Windows itself, the RTX is restarted so they move to Intel right away, at most
+  once every 5 minutes. If a game or another app is on the RTX, it is left alone and named instead.
+
 - **PhysX processor**: NVIDIA's PhysX processor for that mode: "CPU", or "NVIDIA default" to leave NVIDIA's own
   setting (normally Auto-select). It's a registry setting that PhysX games read when they start, so changing it
   never wakes the RTX. NVIDIA's own values are saved the first time and written back afterwards.

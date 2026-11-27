@@ -225,6 +225,11 @@ internal static partial class UiText
         Turkish["Max processor state (E-cores)"] = "Maksimum işlemci durumu (E çekirdekler)";
         Turkish["{0}% (Turbo off)"] = "%{0} (Turbo kapalı)";
         Turkish["{0}%"] = "%{0}";
+        Chinese["{0} is using the RTX, so it stays awake until it closes."] = "{0} 正在使用 RTX，因此在它关闭前 RTX 会保持唤醒。";
+        Hindi["{0} is using the RTX, so it stays awake until it closes."] = "{0} RTX का उपयोग कर रहा है, इसलिए इसके बंद होने तक RTX जागा रहेगा।";
+        Spanish["{0} is using the RTX, so it stays awake until it closes."] = "{0} está usando la RTX, así que seguirá activa hasta que se cierre.";
+        French["{0} is using the RTX, so it stays awake until it closes."] = "{0} utilise la RTX, elle reste donc active jusqu’à sa fermeture.";
+        Turkish["{0} is using the RTX, so it stays awake until it closes."] = "{0} RTX'i kullanıyor, bu yüzden kapanana kadar RTX uyanık kalır.";
         Chinese["RTX still awake"] = "RTX 仍处于唤醒状态";
         Chinese["The RTX is staying awake although no app is using it. Windows' desktop (dwm) is probably still holding memory on it from when the screen was on the RTX. Restart the RTX so it can sleep? Your screen stays on."] = "虽然没有应用在使用 RTX，它仍保持唤醒。可能是 Windows 桌面（dwm）在屏幕由 RTX 驱动时占用的显存尚未释放。要重启 RTX 让它进入睡眠吗？屏幕会保持开启。";
         Chinese["Restart RTX"] = "重启 RTX";
