@@ -107,7 +107,8 @@ namespace PreySense.Frontend.ViewModels
                 // screen moving to the NVIDIA adapter. Display changes happen often (dwm, refresh rate, brightness),
                 // and each read kept an awake RTX up for several more seconds or woke one that was dozing off.
                 bool? screenOnRtx = null;
-                try { screenOnRtx = PreySense.Helpers.DeviceHelper.IsDesktopScreenOnAdapter("NVIDIA"); } catch { }
+                if (_hw is PreySense.Frontend.Services.ProductionHardwareService) // the real screen; tests use fake hardware
+                    try { screenOnRtx = PreySense.Helpers.DeviceHelper.IsDesktopScreenOnAdapter("NVIDIA"); } catch { }
                 if (!biosDiscrete && _hw.IsDdsAvailable && screenOnRtx != false && !IsRtxAsleepOrOff())
                 {
                     try { dds = _hw.GetDdsStatus(); }
