@@ -312,6 +312,95 @@ namespace PreySense.Helpers
             }
         }
 
+        // ── iGPU Only fork: the RTX's HDMI/DisplayPort audio function ──
+        // The RTX is one PCI device with two functions: the GPU and an "NVIDIA High Definition Audio" controller.
+        // They share one power switch, so whenever Windows' audio system touches the audio function (listing
+        // audio outputs, an app starting playback) the whole RTX powers up. Disabling the audio function stops
+        // that; only audio over a monitor wired to the RTX is lost.
+
+        private const uint DIGCF_ALLCLASSES = 0x00000004;
+        private const int SPDRP_HARDWAREID = 0x00000001;
+        private const int SPDRP_SERVICE = 0x00000004;
+
+        private static string ReadMultiString(IntPtr set, ref SP_DEVINFO_DATA data, int property)
+        {
+            var buffer = new byte[2048];
+            if (!ReadDeviceProperty(set, ref data, property, out _, buffer, buffer.Length, out int size) || size <= 0)
+                return string.Empty;
+            return Encoding.Unicode.GetString(buffer, 0, Math.Min(size, buffer.Length)).Replace('\0', ' ');
+        }
+
+        /// <summary>Runs <paramref name="action"/> on the RTX's audio controller(s). Returns false when none is found.</summary>
+        private static bool ForEachNvidiaAudioController(Func<IntPtr, SP_DEVINFO_DATA, bool> action)
+        {
+            Guid any = Guid.Empty;
+            IntPtr set = SetupDiGetClassDevs(ref any, "PCI", IntPtr.Zero, DIGCF_ALLCLASSES | DIGCF_PRESENT);
+            if (set == IntPtr.Zero || set.ToInt64() == -1) return false;
+            bool found = false;
+            try
+            {
+                var data = new SP_DEVINFO_DATA { cbSize = Marshal.SizeOf(typeof(SP_DEVINFO_DATA)) };
+                for (int i = 0; SetupDiEnumDeviceInfo(set, i, ref data); i++)
+                {
+                    string ids = ReadMultiString(set, ref data, SPDRP_HARDWAREID);
+                    if (ids.IndexOf("VEN_10DE", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    string service = ReadMultiString(set, ref data, SPDRP_SERVICE).Trim();
+                    if (!service.Equals("HDAudBus", StringComparison.OrdinalIgnoreCase)) continue;
+                    found = true;
+                    if (!action(set, data)) return false;
+                }
+            }
+            finally { SetupDiDestroyDeviceInfoList(set); }
+            return found;
+        }
+
+        /// <summary>True when the RTX's audio controller is disabled, false when enabled, null when there is none.</summary>
+        public static bool? IsNvidiaAudioDisabled()
+        {
+            bool? disabled = null;
+            try
+            {
+                ForEachNvidiaAudioController((_, data) =>
+                {
+                    if (CM_Get_DevNode_Status(out uint status, out uint problem, data.devInst, 0) != CR_SUCCESS)
+                        return true;
+                    bool off = (status & DN_HAS_PROBLEM) != 0 && problem == CM_PROB_DISABLED;
+                    disabled = (disabled ?? true) && off;   // "disabled" only when every controller is off
+                    return true;
+                });
+            }
+            catch (Exception ex) { AppLogger.Log($"IsNvidiaAudioDisabled failed: {ex.Message}"); }
+            return disabled;
+        }
+
+        /// <summary>Enables or disables the RTX's audio controller. Returns false when it isn't there or Windows refused.</summary>
+        public static bool SetNvidiaAudioEnabled(bool enable)
+        {
+            try
+            {
+                return ForEachNvidiaAudioController((set, data) =>
+                {
+                    var pcp = new SP_PROPCHANGE_PARAMS();
+                    pcp.classInstallHeader.cbSize = Marshal.SizeOf(typeof(SP_CLASSINSTALL_HEADER));
+                    pcp.classInstallHeader.installFunction = (int)DIF_PROPERTYCHANGE;
+                    pcp.stateChange = (int)(enable ? DICS_ENABLE : DICS_DISABLE);
+                    pcp.scope = (int)DICS_FLAG_GLOBAL;
+                    pcp.hwProfile = 0;
+                    bool ok = SetupDiSetClassInstallParams(set, ref data, ref pcp, Marshal.SizeOf(pcp))
+                              && SetupDiCallClassInstaller(DIF_PROPERTYCHANGE, set, ref data);
+                    AppLogger.Log(ok
+                        ? $"NVIDIA audio controller {(enable ? "enabled" : "disabled")}."
+                        : $"NVIDIA audio controller change failed: Win32 error {Marshal.GetLastWin32Error()}");
+                    return ok;
+                });
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Log($"SetNvidiaAudioEnabled failed: {ex.Message}");
+                return false;
+            }
+        }
+
         /// <summary>True when any screen on the desktop is attached to an adapter whose name contains the text
         /// (e.g. an external monitor wired to the NVIDIA GPU). Null when the outputs cannot be listed.</summary>
         public static bool? IsDesktopScreenOnAdapter(string adapterNameSubstring)

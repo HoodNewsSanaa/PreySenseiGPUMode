@@ -439,6 +439,8 @@ public class ForkModeExtrasTests
             var started = new List<string>();
             vm.RtxGuardServiceStopper = names => new List<string> { "NvContainerLocalSystem" };
             vm.RtxGuardServiceStarter = names => started.AddRange(names);
+            var audio = new List<bool>();
+            vm.NvidiaAudioSetter = enable => { audio.Add(enable); return true; };
 
             vm.ApplyRtxGuardForMode(4); // not guarded, nothing stopped: nothing to do
             Assert.IsFalse(vm.IsRtxGuardActive);
@@ -447,11 +449,14 @@ public class ForkModeExtrasTests
             vm.ApplyRtxGuardForMode(6); // Eco: guard on
             Assert.IsTrue(vm.IsRtxGuardActive);
             CollectionAssert.AreEqual(new[] { "NvContainerLocalSystem" }, store.GetCurrent().Tuning.RtxGuardStoppedServices);
+            Assert.IsTrue(store.GetCurrent().Tuning.RtxGuardDisabledAudio);
 
             vm.ApplyRtxGuardForMode(4); // guard off: services back
             Assert.IsFalse(vm.IsRtxGuardActive);
             CollectionAssert.AreEqual(new[] { "NvContainerLocalSystem" }, started);
             Assert.IsEmpty(store.GetCurrent().Tuning.RtxGuardStoppedServices);
+            Assert.IsFalse(store.GetCurrent().Tuning.RtxGuardDisabledAudio);
+            CollectionAssert.AreEqual(new[] { false, true }, audio); // off with the guard, back on after
         }
         finally { Directory.Delete(folder, true); }
     }

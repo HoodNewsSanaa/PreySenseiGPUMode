@@ -82,7 +82,9 @@ So when you change the GPU tile:
 
 - **RTX guard**: keeps things from waking the RTX in that mode (Optimus). It stops NVIDIA's polling services
   (NVIDIA app container and FrameView; the NVIDIA app won't open
-  meanwhile) and starts them again when you switch to a mode without the guard or quit PreySense. Every 2 seconds
+  meanwhile), and turns off the RTX's own HDMI/DisplayPort audio controller (it shares the RTX's power, and
+  Windows' audio system touched it about twice as often as the GPU was awake; only sound through a monitor wired
+  to the RTX is lost). Both come back when you switch to a mode without the guard or quit PreySense. Every 2 seconds
   it checks Windows' cached RTX state; when the RTX is awake it reads Windows' GPU counters to see which apps are
   on it and sets each to "Power saving" in Windows' graphics settings, so it won't use the RTX again after it
   restarts. Apps that already have a graphics choice of yours, Windows' own apps and NVIDIA's are never changed.

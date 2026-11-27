@@ -37,6 +37,39 @@ public partial class MainViewModel
     /// <summary>Test seams.</summary>
     internal Func<IEnumerable<string>, List<string>>? RtxGuardServiceStopper { get; set; }
     internal Action<IEnumerable<string>>? RtxGuardServiceStarter { get; set; }
+    internal Func<bool, bool>? NvidiaAudioSetter { get; set; }
+
+    /// <summary>
+    /// The RTX's HDMI/DisplayPort audio controller shares the RTX's power switch, and Windows' audio system touches
+    /// it whenever it lists audio outputs or an app (a browser tab, a game launcher) starts sound. In captures it was
+    /// awake about twice as often as the GPU itself, waking the whole RTX each time. While guarded and the laptop
+    /// screen is on Intel, PreySense turns it off; only sound through a monitor wired to the RTX is lost.
+    /// </summary>
+    private bool SetNvidiaAudio(bool enable)
+    {
+        if (NvidiaAudioSetter is not null) return NvidiaAudioSetter(enable);
+        if (RtxGuardServiceStopper is not null) return true; // tests without an audio seam
+        return PreySense.Helpers.DeviceHelper.SetNvidiaAudioEnabled(enable);
+    }
+
+    private void DisableNvidiaAudioForGuard()
+    {
+        if (TuningStore.GetCurrent().Tuning.RtxGuardDisabledAudio) return;
+        if (NvidiaAudioSetter is null && RtxGuardServiceStopper is null
+            && PreySense.Helpers.DeviceHelper.IsNvidiaAudioDisabled() != false)
+            return; // none, or the user turned it off themselves: leave it alone
+        if (!SetNvidiaAudio(false)) return;
+        TuningStore.Update(cfg => cfg.Tuning.RtxGuardDisabledAudio = true);
+        AppLogger.Log("[RTX guard] RTX audio controller off.");
+    }
+
+    private void RestoreNvidiaAudioForGuard()
+    {
+        if (!TuningStore.GetCurrent().Tuning.RtxGuardDisabledAudio) return;
+        SetNvidiaAudio(true);
+        TuningStore.Update(cfg => cfg.Tuning.RtxGuardDisabledAudio = false);
+        AppLogger.Log("[RTX guard] RTX audio controller back on.");
+    }
 
     internal bool IsRtxGuardActive => _rtxGuardActive;
 
@@ -84,7 +117,8 @@ public partial class MainViewModel
             lock (_rtxGuardGate)
             {
                 if (wanted && !_rtxGuardActive) StartRtxGuardLocked(mode);
-                else if (!wanted && (_rtxGuardActive || tuning.RtxGuardStoppedServices is { Count: > 0 })) StopRtxGuardLocked(mode);
+                else if (!wanted && (_rtxGuardActive || tuning.RtxGuardStoppedServices is { Count: > 0 } || tuning.RtxGuardDisabledAudio))
+                    StopRtxGuardLocked(mode);
                 if (autoMove != _autoMoveActive)
                 {
                     _autoMoveActive = autoMove;
@@ -129,6 +163,8 @@ public partial class MainViewModel
         }
         var stopped = (RtxGuardServiceStopper ?? RtxGuard.StopServices)(RtxGuard.PollingServices);
         _rtxGuardServicesPending = false;
+        try { DisableNvidiaAudioForGuard(); }
+        catch (Exception ex) { AppLogger.Error("[RTX guard] audio: " + ex.Message); }
         if (stopped.Count == 0) return;
         TuningStore.Update(cfg =>
         {
@@ -161,6 +197,8 @@ public partial class MainViewModel
             (RtxGuardServiceStarter ?? RtxGuard.StartServices)(services);
             TuningStore.Update(cfg => cfg.Tuning.RtxGuardStoppedServices = new());
         }
+        try { RestoreNvidiaAudioForGuard(); }
+        catch (Exception ex) { AppLogger.Error("[RTX guard] audio: " + ex.Message); }
         AppLogger.Log(mode is byte m ? $"[RTX guard] {GetModeTitle(m)}: guard off." : "[RTX guard] Guard off.");
     }
 
@@ -211,6 +249,7 @@ public partial class MainViewModel
                     RtxGuard.StartServices(services); // Start() only sends the request: quick
                     TuningStore.Update(cfg => cfg.Tuning.RtxGuardStoppedServices = new());
                 }
+                RestoreNvidiaAudioForGuard();
             }
         }
         catch { }

@@ -287,6 +287,13 @@ namespace PreySense.Core.Configuration
         [JsonPropertyOrder(15)]
         public List<string> RtxGuardMovedApps { get; set; } = new();
 
+        /// <summary>
+        /// iGPU Only fork: true while the RTX guard has the RTX's HDMI/DisplayPort audio controller turned off, so
+        /// it is turned back on after a crash or forced shutdown.
+        /// </summary>
+        [JsonPropertyOrder(15)]
+        public bool RtxGuardDisabledAudio { get; set; }
+
         /// <summary>Driver-read factory profiles, saved only after all five modes were captured.</summary>
         [JsonPropertyOrder(14)]
         public Dictionary<string, ModeTuningConfig> FactoryDefaults { get; set; } = new();
@@ -369,6 +376,7 @@ namespace PreySense.Core.Configuration
             HeldPlanSettings = HeldPlanSettings?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.Clone()!)!,
             RtxGuardStoppedServices = RtxGuardStoppedServices?.ToList()!,
             RtxGuardMovedApps = RtxGuardMovedApps?.ToList()!,
+            RtxGuardDisabledAudio = RtxGuardDisabledAudio,
             FactoryDefaults = FactoryDefaults?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.Clone()!)!,
             Quiet = Quiet?.Clone()!,
             Eco = Eco?.Clone()!,
