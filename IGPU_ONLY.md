@@ -91,6 +91,11 @@ All of these save and apply as soon as you pick a value.
 average), battery percent, estimated time left, CPU package power and whether the RTX is awake. It reads every
 2 seconds while shown and never wakes the RTX. Drag to move; double-click or right-click to close.
 
+**RTX still awake** (automatic): about 25 seconds after switching to Eco, or to any mode with the RTX guard on,
+PreySense checks whether the RTX is still awake with no app on it. That usually means Windows' desktop
+compositor (dwm) kept memory on it after the screen was on the RTX. PreySense then asks whether to restart the
+RTX, which releases it; the screen stays on Intel.
+
 **Move apps off the RTX** (Settings): lists the apps using the RTX and, after you confirm, restarts it so they
 move to the integrated GPU (like Legion Toolkit's "deactivate GPU"). Most apps carry on; games and some apps may
 close. Set the mode's preferred GPU to Integrated graphics first, or apps may pick the RTX again. It isn't offered

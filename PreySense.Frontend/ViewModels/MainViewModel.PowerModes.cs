@@ -368,6 +368,7 @@ namespace PreySense.Frontend.ViewModels
                 }
             }
             NotifyConfirmedPowerMode(mode);
+            ScheduleRtxReleaseCheck(mode);
             if (!await ApplyCpuBoostForModeAsync(mode))
                 DiagnosticMessage = "Mode selected, but CPU boost failed.";
             // OnPowerModeChanged skips RestoreFanMode while the mode-switch gate is held — load here.
